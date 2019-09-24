@@ -70,7 +70,7 @@ class Trainer(object):
 
             start = time.strftime('%m/%d-%H:%M:%S')
             print(f'Starting epoch: {epoch} | phase: train | {start}')
-            print('lr:', self.lr)
+            print('lr:', self.optimizer.param_groups[0]['lr'])
             self.iterate('train')
             state = {
                 'epoch': epoch,
@@ -83,7 +83,7 @@ class Trainer(object):
             print(f'Starting epoch: {epoch} | phase: val | {start}')
             val_loss = self.iterate('val')
             # self.scheduler.step(val_loss)
-            self.scheduler.step(epoch)
+            self.scheduler.step()
             if val_loss < self.best_loss:
                 print('******** New optimal found, saving state ********')
                 state['best_loss'] = self.best_loss = val_loss

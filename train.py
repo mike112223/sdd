@@ -15,7 +15,7 @@ from lib.loss import BalanceBCE, DiceLoss
 def parse_args():
     parser = argparse.ArgumentParser(description='Train semantic seg')
     parser.add_argument('--data_folder', default='/DATA5_DB8/data/yanjia/data/steel_defect/train')
-    parser.add_argument('--epoch', dest='num_epochs', default=60, type=int)
+    parser.add_argument('--epoch', dest='num_epochs', default=61, type=int)
     parser.add_argument('--work_dir', default=None, help='the dir to save logs and models')
     parser.add_argument('--resume_from', default=None, help='the checkpoint file to resume from')
     parser.add_argument('--backbone',default='resnet18',help='backbone')

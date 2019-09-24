@@ -113,6 +113,8 @@ def provider(
         train_df, val_df = train_test_split(df, test_size=0.2, stratify=df["defects"])
         val_df.to_csv('/DATA5_DB8/data/yanjia/data/steel_defect/split_val.csv')
         train_df.to_csv('/DATA5_DB8/data/yanjia/data/steel_defect/split_train.csv')
+        # train_df = df
+        # val_df = df
     else:
         print('read from csv')
         train_df = pd_transfer(pd.read_csv(train_df))
