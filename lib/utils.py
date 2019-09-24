@@ -34,6 +34,7 @@ def make_mask(row_id, df):
             length = map(int, label[1::2])
             mask = np.zeros(256 * 1600, dtype=np.uint8)
             for pos, le in zip(positions, length):
+                pos -= 1
                 mask[pos:(pos + le)] = 1
             masks[:, :, idx] = mask.reshape(256, 1600, order='F')
     return fname, masks
@@ -84,7 +85,9 @@ def class_metric(probability, truth, min_size, thres_range=np.arange(0.3, 0.7, 0
 
         dice = 2 * (p*t).sum(-1)/((p+t).sum(-1))
 
-        dice = np.nan_to_num(dice, nan=1)
+        # dice = np.nan_to_num(dice, nan=1)
+        dice[np.isnan(dice)] = 1
+
         dice_list.append(dice)
 
     return dice_list
@@ -108,39 +111,55 @@ def metric(probability, truth, min_size_dict, thres_range=np.arange(0.1, 0.7, 0.
 
 class Meter:
     '''A meter to keep track of iou and dice scores throughout an epoch'''
-    def __init__(self, min_size_dict={0: 0, 1: 0, 2: 0, 3: 0}):
+    def __init__(self, phase, min_size_dict={0: 0, 1: 0, 2: 0, 3: 0}):
+        self.phase = phase
         self.min_size_dict = min_size_dict 
-        self.thres_range = np.arange(0.1, 0.7, 0.05)
+        # self.thres_range = np.arange(0.1, 0.7, 0.05)
+        self.thres_range = np.arange(0.5, 0.51, 0.05)
 
         self.mean_dices = []
         self.max_dices = []
         self.losses = []
 
+    # def train_update(self, loss, progress):
+    #     loss = loss.item()
+    #     self.losses.append(loss)
+    #     stamp = time.strftime('%m/%d-%H:%M:%S')
+    #     print('%s: %s, loss %.4f' % (stamp, progress, loss))
+
     def update(self, targets, outputs, loss, progress):
         loss = loss.item()
-        probs = torch.sigmoid(outputs)
-        mean_dice, max_dice = metric(probs.detach().cpu().numpy(), targets.cpu().numpy(), self.min_size_dict, self.thres_range)
-
-        self.mean_dices.append(mean_dice)
-        self.max_dices.append(max_dice)
         self.losses.append(loss)
-        
-        max_dice_str = ''
-        for ii in max_dice:
-            max_dice_str += ' %.4f' % ii
         stamp = time.strftime('%m/%d-%H:%M:%S')
-        print('%s: %s, loss %.4f,  mean dice %.4f, max dice %s' % (stamp, progress, loss, mean_dice, max_dice_str))
+
+        if self.phase == 'train':
+            print('%s: %s, loss %.4f' % (stamp, progress, loss))
+        else:
+            probs = torch.sigmoid(outputs)
+            mean_dice, max_dice = metric(probs.detach().cpu().numpy(), targets.cpu().numpy(), self.min_size_dict, self.thres_range)
+
+            self.mean_dices.append(mean_dice)
+            self.max_dices.append(max_dice)
+        
+            max_dice_str = ''
+            for ii in max_dice:
+                max_dice_str += ' %.4f' % ii
+            print('%s: %s, loss %.4f,  mean dice %.4f, max dice %s' % (stamp, progress, loss, mean_dice, max_dice_str))
 
     def summary(self):
         loss = np.array(self.losses).mean()
-        mean_dice = np.array(self.mean_dices).mean()
-        max_dice = np.array(self.max_dices).mean(0)
 
-        max_dice_str = ''
-        for ii in max_dice:
-            max_dice_str += '%.4f ' % ii
-        max_dice_str = max_dice_str.strip()
-        print('summary: loss %.4f,  mean dice %.4f, max dice %s' % (loss, mean_dice, max_dice_str))
+        if self.phase == 'train':
+            print('summary: loss %.4f' % (loss)) 
+        else:
+            mean_dice = np.array(self.mean_dices).mean()
+            max_dice = np.array(self.max_dices).mean(0)
+
+            max_dice_str = ''
+            for ii in max_dice:
+                max_dice_str += '%.4f ' % ii
+            max_dice_str = max_dice_str.strip()
+            print('summary: loss %.4f,  mean dice %.4f, max dice %s' % (loss, mean_dice, max_dice_str))
         return loss
 
 

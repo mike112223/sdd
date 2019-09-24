@@ -1,7 +1,8 @@
 import time
+import os
 import torch
 import torch.optim as optim
-from torch.optim.lr_scheduler import ReduceLROnPlateau
+from torch.optim.lr_scheduler import ReduceLROnPlateau, StepLR
 import torch.backends.cudnn as cudnn
 from tqdm import tqdm
 
@@ -21,9 +22,11 @@ class Trainer(object):
         torch.set_default_tensor_type('torch.cuda.FloatTensor')
         self.net = model
         self.criterion = criterion 
-        self.optimizer = optim.Adam(self.net.parameters(), lr=self.lr)
-        #self.optimizer = optim.SGD(self.net.parameters(), lr=self.lr, momentum=0.9, weight_decay=1e-4)
-        self.scheduler = ReduceLROnPlateau(self.optimizer, mode='min', patience=3, verbose=True)
+        # self.optimizer = optim.Adam(self.net.parameters(), lr=self.lr)
+        # self.scheduler = ReduceLROnPlateau(self.optimizer, mode='min', patience=3, verbose=True)
+        self.optimizer = optim.SGD(self.net.parameters(), lr=self.lr, momentum=0.9, weight_decay=1e-4)
+        self.scheduler = StepLR(self.optimizer, step_size=self.num_epochs//3, gamma=0.1)
+
         self.net = self.net.to(self.device)
 
         cudnn.benchmark = True
@@ -37,7 +40,7 @@ class Trainer(object):
         return loss, outputs
 
     def iterate(self, phase):
-        meter = Meter()
+        meter = Meter(phase)
         batch_size = self.batch_size[phase]
         self.net.train(phase=='train')
         dataloader = self.dataloaders[phase]
@@ -45,12 +48,16 @@ class Trainer(object):
         self.optimizer.zero_grad()
         for itr, batch in enumerate(dataloader): # replace `dataloader` with `tk0` for tqdm
             images, targets = batch
-            loss, outputs = self.forward(images, targets)
             if phase == 'train':
+                loss, outputs = self.forward(images, targets)
                 loss.backward()
                 if (itr + 1 ) % self.accumulation_steps == 0:
                     self.optimizer.step()
                     self.optimizer.zero_grad()
+            else:
+                with torch.no_grad():
+                    loss, outputs = self.forward(images, targets)
+
             outputs = outputs.detach().cpu()
             progress = '%d/%d' % (itr, len(dataloader))
             meter.update(targets, outputs, loss, progress)
@@ -63,6 +70,7 @@ class Trainer(object):
 
             start = time.strftime('%m/%d-%H:%M:%S')
             print(f'Starting epoch: {epoch} | phase: train | {start}')
+            print('lr:', self.lr)
             self.iterate('train')
             state = {
                 'epoch': epoch,
@@ -74,11 +82,21 @@ class Trainer(object):
             start = time.strftime('%m/%d-%H:%M:%S')
             print(f'Starting epoch: {epoch} | phase: val | {start}')
             val_loss = self.iterate('val')
-            self.scheduler.step(val_loss)
+            # self.scheduler.step(val_loss)
+            self.scheduler.step(epoch)
             if val_loss < self.best_loss:
                 print('******** New optimal found, saving state ********')
                 state['best_loss'] = self.best_loss = val_loss
-                print('save as %s/model.pth' % savedir)
-                torch.save(state, '%s/model.pth' % savedir)
+                if not os.path.exists(savedir):
+                    os.makedirs(savedir)
+                print('save as %s/model_best.pth' % savedir)
+                torch.save(state, '%s/model_best.pth' % savedir)
+
+            if epoch % (self.num_epochs//3) == 0:
+                if not os.path.exists(savedir):
+                    os.makedirs(savedir)
+                print('save as %s/model_%d.pth' % (savedir, epoch))
+                torch.save(state, '%s/model_%d.pth' % (savedir, epoch))                
+
             print()
 
