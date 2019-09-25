@@ -92,7 +92,7 @@ class Trainer(object):
                 print('save as %s/model_best.pth' % savedir)
                 torch.save(state, '%s/model_best.pth' % savedir)
 
-            if epoch % (self.num_epochs//3) == 0:
+            if epoch % (self.num_epochs//3) == 0 or epoch == self.num_epochs-1:
                 if not os.path.exists(savedir):
                     os.makedirs(savedir)
                 print('save as %s/model_%d.pth' % (savedir, epoch))
