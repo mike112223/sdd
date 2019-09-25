@@ -22,10 +22,10 @@ class Trainer(object):
         torch.set_default_tensor_type('torch.cuda.FloatTensor')
         self.net = model
         self.criterion = criterion 
-        # self.optimizer = optim.Adam(self.net.parameters(), lr=self.lr)
-        # self.scheduler = ReduceLROnPlateau(self.optimizer, mode='min', patience=3, verbose=True)
-        self.optimizer = optim.SGD(self.net.parameters(), lr=self.lr, momentum=0.9, weight_decay=1e-4)
-        self.scheduler = StepLR(self.optimizer, step_size=self.num_epochs//3, gamma=0.1)
+        self.optimizer = optim.Adam(self.net.parameters(), lr=self.lr)
+        self.scheduler = ReduceLROnPlateau(self.optimizer, mode='min', patience=3, verbose=True)
+        # self.optimizer = optim.SGD(self.net.parameters(), lr=self.lr, momentum=0.9, weight_decay=1e-4)
+        # self.scheduler = StepLR(self.optimizer, step_size=self.num_epochs//3, gamma=0.1)
 
         self.net = self.net.to(self.device)
 
@@ -82,8 +82,8 @@ class Trainer(object):
             start = time.strftime('%m/%d-%H:%M:%S')
             print(f'Starting epoch: {epoch} | phase: val | {start}')
             val_loss = self.iterate('val')
-            # self.scheduler.step(val_loss)
-            self.scheduler.step()
+            self.scheduler.step(val_loss)
+            # self.scheduler.step()
             if val_loss < self.best_loss:
                 print('******** New optimal found, saving state ********')
                 state['best_loss'] = self.best_loss = val_loss

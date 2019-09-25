@@ -9,7 +9,7 @@ import argparse
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Train semantic seg')
-    parser.add_argument('--log', default=None)
+    parser.add_argument('--log', metavar='N', type=str, nargs='+')
     parser.add_argument('--b', default=0, type=int)
 
     args = parser.parse_args()
@@ -19,10 +19,8 @@ def parse_args():
 
 def main(args):
 
-    logs = args.log.split(',')
-
     plt.figure()
-    for i, path in enumerate(logs):
+    for i, path in enumerate(args.log):
         lines = open(path).readlines()
         losses = []
         iterations = []
@@ -42,7 +40,8 @@ def main(args):
 
         plt.plot(iterations[args.b:], losses[args.b:])
     
-    plt.legend(logs)
+    plt.ylim(0,0.05)
+    plt.legend(args.log)
     plt.show()
     # plt.show()
 
