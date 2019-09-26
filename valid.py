@@ -31,6 +31,7 @@ def parse_args():
     parser.add_argument('--ckpt_path', default=None)
     parser.add_argument('--phase', default='val', type=str)
     parser.add_argument('--backbone',default='resnet18',help='backbone')
+    parser.add_argument('--arch', choices=['Unet', 'deeplabv3_resnet50'], default='Unet')
     parser.add_argument('--classes', type=int, default=4)
     parser.add_argument('--num_workers', type=int, default=8)
     parser.add_argument('--train_batch', type=int, default=16)
@@ -38,6 +39,7 @@ def parse_args():
 
     parser.add_argument('--gpu', type=int, default=0)
     parser.add_argument('--need_split', action='store_true', default=False)
+    parser.add_argument('--downsample', type=int, default=2)
 
     args = parser.parse_args()
 
@@ -145,6 +147,7 @@ def main(args):
     else:
         val_df = '%s/../split_train.csv' % data_folder
     need_split = args.need_split
+    downsample = args.downsample
 
     test_data_folder = '%s/images' % data_folder
 
@@ -158,7 +161,8 @@ def main(args):
                 num_workers=2,
                 need_split=args.need_split,
                 train_df=train_df, 
-                val_df=val_df 
+                val_df=val_df,
+                downsample=downsample
                 )['val']
 
     inv_mean = tuple(-ii[0]/ii[1] for ii in zip(mean, std))
@@ -166,7 +170,12 @@ def main(args):
     df = pd.read_csv(total_df_path)
 
     device = torch.device('cuda')
-    model = Unet('resnet18', encoder_weights=None, classes=4, activation=None)
+
+    if args.arch == 'Unet':
+        model = Unet('resnet18', encoder_weights=None, classes=4, activation=None)
+    elif args.arch == 'deeplabv3_resnet50':
+        model = deeplabv3_resnet50(pretrained=False, progress=True, num_classes=4, aux_loss=None, resume_fp=resume_fp)
+
     model.to(device)
     model.eval()
 
@@ -202,7 +211,7 @@ def main(args):
             batch_preds = batch_preds.cpu().numpy()
 
             all_pred.append(batch_preds)
-            
+
             tmp_dice = metric(batch_preds, gt_masks.numpy(), min_size_dict)
             tmp_dice = np.array(tmp_dice)
             if i == 0:

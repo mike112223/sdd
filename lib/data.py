@@ -23,7 +23,7 @@ def downsample(mask, kernel_size, thresh):
 
 
 class SteelDataset(Dataset):
-    def __init__(self, df, data_folder, mean, std, phase, inference=False):
+    def __init__(self, df, data_folder, mean, std, phase, inference=False, downsample=1):
         self.df = df
         self.root = data_folder
         self.mean = mean
@@ -32,6 +32,7 @@ class SteelDataset(Dataset):
         self.transforms = get_transforms(phase, mean, std)
         self.fnames = self.df.index.tolist()
         self.inference = inference
+        self.downsample = downsample
 
     def __getitem__(self, idx):
         image_id, mask = make_mask(idx, self.df)
@@ -45,7 +46,7 @@ class SteelDataset(Dataset):
         if self.inference:
             return image_id, img
         else:
-            mask = downsample(mask, 2, 0)
+            mask = downsample(mask, self.downsample, 0)
             #print('after', mask.dtype, mask.shape)
             return img, mask
 
@@ -97,7 +98,8 @@ def provider(
     inference=False,
     need_split=True,
     train_df=None, 
-    val_df=None 
+    val_df=None,
+    downsample=1
 ):
     '''Returns dataloader for the model training'''
     if need_split:
@@ -127,7 +129,7 @@ def provider(
     dataloaders = {}
     for phase in phases:
         df = train_df if phase == "train" else val_df
-        image_dataset = SteelDataset(df, data_folder, mean, std, phase, inference)
+        image_dataset = SteelDataset(df, data_folder, mean, std, phase, inference, downsample)
         dataloader = DataLoader(
             image_dataset,
             batch_size=batch_sizes[phase],

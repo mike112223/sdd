@@ -11,7 +11,7 @@ from .utils import Meter
 
 class Trainer(object):
     '''This class takes care of training and validation of our model'''
-    def __init__(self, model, criterion, dataloaders, phases, batch_size, lr, num_epochs, device):
+    def __init__(self, model, criterion, dataloaders, phases, batch_size, lr, num_epochs, device, restart_epoch, save_frequency):
 
         self.device = device
         self.batch_size = batch_size 
@@ -28,6 +28,8 @@ class Trainer(object):
         # self.scheduler = StepLR(self.optimizer, step_size=self.num_epochs//3, gamma=0.1)
 
         self.net = self.net.to(self.device)
+        self.restart_epoch = restart_epoch
+        self.save_frequency = save_frequency
 
         cudnn.benchmark = True
         self.dataloaders = dataloaders
@@ -36,6 +38,9 @@ class Trainer(object):
         images = images.to(self.device)
         masks = targets.to(self.device)
         outputs = self.net(images)
+        if isinstance(outputs, dict):
+            outputs = outputs['out']
+
         loss = self.criterion(outputs, masks)
         return loss, outputs
 
@@ -67,6 +72,10 @@ class Trainer(object):
 
     def start(self, savedir):
         for epoch in range(self.num_epochs):
+            if epoch % self.restart_epoch == 0:
+                print('reset lr')
+                for param_group in self.optimizer.param_groups:
+                    param_group['lr'] = self.lr
 
             start = time.strftime('%m/%d-%H:%M:%S')
             print(f'Starting epoch: {epoch} | phase: train | {start}')
@@ -92,7 +101,7 @@ class Trainer(object):
                 print('save as %s/model_best.pth' % savedir)
                 torch.save(state, '%s/model_best.pth' % savedir)
 
-            if epoch % (self.num_epochs//3) == 0 or epoch == self.num_epochs-1:
+            if epoch % self.save_frequency == 0 or epoch == self.num_epochs-1:
                 if not os.path.exists(savedir):
                     os.makedirs(savedir)
                 print('save as %s/model_%d.pth' % (savedir, epoch))
