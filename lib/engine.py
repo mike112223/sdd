@@ -19,6 +19,7 @@ class Trainer(object):
         self.lr = lr 
         self.num_epochs = num_epochs
         self.best_loss = float('inf')
+        self.best_score = float('inf')
         torch.set_default_tensor_type('torch.cuda.FloatTensor')
         self.net = model
         self.criterion = criterion 
@@ -86,13 +87,18 @@ class Trainer(object):
                 'best_loss': self.best_loss,
                 'state_dict': self.net.state_dict(),
                 'optimizer': self.optimizer.state_dict(),
+                'score': self.best_score
             }
 
             start = time.strftime('%m/%d-%H:%M:%S')
             print(f'Starting epoch: {epoch} | phase: val | {start}')
-            val_loss = self.iterate('val')
+            val_loss, val_score = self.iterate('val')
             self.scheduler.step(val_loss)
             # self.scheduler.step()
+
+            if val_score > self.best_score:
+                state['best_score'] = self.best_score = val_score
+
             if val_loss < self.best_loss:
                 print('******** New optimal found, saving state ********')
                 state['best_loss'] = self.best_loss = val_loss

@@ -160,7 +160,7 @@ class Meter:
                 max_dice_str += '%.4f ' % ii
             max_dice_str = max_dice_str.strip()
             print('summary: loss %.4f,  mean dice %.4f, max dice %s' % (loss, mean_dice, max_dice_str))
-        return loss
+        return loss, mean_dice
 
 
 def init(seed=69):

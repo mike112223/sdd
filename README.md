@@ -26,7 +26,7 @@ https://www.kaggle.com/c/severstal-steel-defect-detection/discussion/109174#late
 # train instruction template
 
 ## deeplabv3
-'''
+'''bash
 nohup python -u train.py \
     --gpu 2 --epoch 21 --arch deeplabv3_resnet50 \
     --downsample 1 --val_batch 16 --train_batch 8 \
@@ -41,3 +41,13 @@ nohup python -u train.py \
     --resume_from workdir/Unet_resnet18_Adam_baseline_20-40epoch_v1/model_20.pth > workdir/20190926_0952.log 2>&1 &
 
 # test intruction template
+## deeplabv3
+python valid.py \
+    --gpu 3 --val_batch 16 --downsample 1 \
+    --arch deeplabv3_resnet50 --ckpt_path workdir/deeplab/model_best.pth 
+
+## Unet
+python valid.py \
+    --val_batch 32 --gpu 0 \
+    --ckpt_path workdir/Unet_resnet18_Adam_baseline_20-40epoch_v1/model_best.pth
+

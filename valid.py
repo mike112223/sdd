@@ -22,6 +22,7 @@ from albumentations.pytorch import ToTensor
 import torch.utils.data as data
 
 from lib.model import Unet # import Unet model from the script
+from lib.deeplab import deeplabv3_resnet50
 from lib.data import provider
 from lib.utils import init
 
@@ -174,7 +175,7 @@ def main(args):
     if args.arch == 'Unet':
         model = Unet('resnet18', encoder_weights=None, classes=4, activation=None)
     elif args.arch == 'deeplabv3_resnet50':
-        model = deeplabv3_resnet50(pretrained=False, progress=True, num_classes=4, aux_loss=None, resume_fp=resume_fp)
+        model = deeplabv3_resnet50(pretrained=False, progress=True, num_classes=4, aux_loss=None)
 
     model.to(device)
     model.eval()
@@ -203,8 +204,10 @@ def main(args):
                 #batch_preds_1 = torch.flip(batch_preds_flip, [3])
                 #batch_preds_shift = torch.sigmoid(model(images_shift.to(device)))
                 #batch_preds_1 = torch.roll(batch_preds_shift, 32, 3)
-
-            batch_preds_2 = torch.sigmoid(model(images.to(device)))
+            outputs = model(images.to(device))
+            if isinstance(outputs, dict):
+                outputs = outputs['out']
+            batch_preds_2 = torch.sigmoid(outputs)
 
             batch_preds = (batch_preds_2 + batch_preds_2) / 2
             #batch_preds = torch.nn.functional.upsample(batch_preds, scale_factor=2)
