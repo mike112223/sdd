@@ -41,6 +41,8 @@ def parse_args():
     parser.add_argument('--gpu', type=int, default=0)
     parser.add_argument('--need_split', action='store_true', default=False)
     parser.add_argument('--downsample', type=int, default=2)
+    parser.add_argument('--aspp_dilation', type=int, default=6)
+    parser.add_argument('--replace',help='replace_stride_with_dilation', type=str, default='0,0,1')
 
     args = parser.parse_args()
 
@@ -149,6 +151,8 @@ def main(args):
         val_df = '%s/../split_train.csv' % data_folder
     need_split = args.need_split
     downsample = args.downsample
+    aspp_dilation = args.aspp_dilation
+    replace_stride_with_dilation = [int(_) for _ in args.replace.split(',')]
 
     test_data_folder = '%s/images' % data_folder
 
@@ -175,7 +179,9 @@ def main(args):
     if args.arch == 'Unet':
         model = Unet('resnet18', encoder_weights=None, classes=4, activation=None)
     elif args.arch == 'deeplabv3_resnet50':
-        model = deeplabv3_resnet50(pretrained=False, progress=True, num_classes=4, aux_loss=None)
+        model = deeplabv3_resnet50(pretrained=False, progress=True, num_classes=4, 
+            aux_loss=None, resume_fp=None, aspp_dilation=aspp_dilation,
+            replace=replace_stride_with_dilation)
 
     model.to(device)
     model.eval()

@@ -5,6 +5,7 @@ from collections import OrderedDict
 
 from torch.utils.model_zoo import load_url as load_state_dict_from_url
 from torchvision.models import resnet
+# from lib import resnet
 
 
 model_urls = {
@@ -13,10 +14,10 @@ model_urls = {
 }
 
 
-def _segm_resnet(name, backbone_name, num_classes, aux, pretrained_backbone=True):
+def _segm_resnet(name, backbone_name, num_classes, aux, aspp_dilation, replace, freeze, pretrained_backbone=True):
     backbone = resnet.__dict__[backbone_name](
         pretrained=pretrained_backbone,
-        replace_stride_with_dilation=[False, False, True])
+        replace_stride_with_dilation=replace)
 
     return_layers = {'layer4': 'out'}
     if aux:
@@ -24,22 +25,25 @@ def _segm_resnet(name, backbone_name, num_classes, aux, pretrained_backbone=True
     backbone = IntermediateLayerGetter(backbone, return_layers=return_layers)
 
     aux_classifier = None
+    if aux:
+        inplanes = 1024
+        aux_classifier = FCNHead(inplanes, num_classes)
 
     model_map = {
         'deeplabv3': (DeepLabHead, DeepLabV3),
     }
     inplanes = 2048
-    classifier = model_map[name][0](inplanes, num_classes)
+    classifier = model_map[name][0](inplanes, num_classes, aspp_dilation)
     base_model = model_map[name][1]
 
-    model = base_model(backbone, classifier, aux_classifier)
+    model = base_model(backbone, classifier, aux_classifier, freeze)
     return model
 
 
-def _load_model(arch_type, backbone, pretrained, progress, num_classes, aux_loss, resume_fp, **kwargs):
+def _load_model(arch_type, backbone, pretrained, progress, num_classes, aux_loss, resume_fp, aspp_dilation, replace, freeze, **kwargs):
     if pretrained:
         aux_loss = True
-    model = _segm_resnet(arch_type, backbone, num_classes, aux_loss, **kwargs)
+    model = _segm_resnet(arch_type, backbone, num_classes, aux_loss, aspp_dilation, replace, freeze, **kwargs)
     if pretrained:
         arch = arch_type + '_' + backbone + '_coco'
         model_url = model_urls[arch]
@@ -56,37 +60,39 @@ def _load_model(arch_type, backbone, pretrained, progress, num_classes, aux_loss
 
     return model
 
-def deeplabv3_resnet50(pretrained=False, progress=True,
-                       num_classes=21, aux_loss=None, resume_fp=None, **kwargs):
-    """Constructs a DeepLabV3 model with a ResNet-50 backbone.
 
-    Args:
-        pretrained (bool): If True, returns a model pre-trained on COCO train2017 which
-            contains the same classes as Pascal VOC
-        progress (bool): If True, displays a progress bar of the download to stderr
-    """
-    return _load_model('deeplabv3', 'resnet50', pretrained, progress, num_classes, aux_loss, resume_fp, **kwargs)
+def deeplabv3_resnet50(pretrained=False, progress=True,
+                       num_classes=21, aux_loss=None, resume_fp=None, aspp_dilation=6, replace=[0,0,1], freeze=False, **kwargs):
+    return _load_model('deeplabv3', 'resnet50', pretrained, progress, num_classes, 
+        aux_loss, resume_fp, aspp_dilation, replace, freeze, **kwargs)
 
 
 def deeplabv3_resnet101(pretrained=False, progress=True,
                         num_classes=21, aux_loss=None, **kwargs):
-    """Constructs a DeepLabV3 model with a ResNet-101 backbone.
-
-    Args:
-        pretrained (bool): If True, returns a model pre-trained on COCO train2017 which
-            contains the same classes as Pascal VOC
-        progress (bool): If True, displays a progress bar of the download to stderr
-    """
     return _load_model('deeplabv3', 'resnet101', pretrained, progress, num_classes, aux_loss, **kwargs)
 
 
 ###
 class _SimpleSegmentationModel(nn.Module):
-    def __init__(self, backbone, classifier, aux_classifier=None):
+    def __init__(self, backbone, classifier, aux_classifier=None, freeze=False):
         super(_SimpleSegmentationModel, self).__init__()
         self.backbone = backbone
         self.classifier = classifier
         self.aux_classifier = aux_classifier
+        self.freeze_bn = freeze
+
+        if self.freeze_bn:
+            for m in self.backbone.modules():
+                if isinstance(m, nn.BatchNorm2d):
+                    m.eval()
+                    m.weight.requires_grad = False
+                    m.bias.requires_grad = False
+            for m in self.classifier.modules():
+                if isinstance(m, nn.BatchNorm2d):
+                    m.eval()
+                    m.weight.requires_grad = False
+                    m.bias.requires_grad = False
+                    
 
     def forward(self, x):
         input_shape = x.shape[-2:]
@@ -109,6 +115,43 @@ class _SimpleSegmentationModel(nn.Module):
 
 ### deeplabv3.py
 
+class FCN(_SimpleSegmentationModel):
+    """
+    Implements a Fully-Convolutional Network for semantic segmentation.
+
+    Arguments:
+        backbone (nn.Module): the network used to compute the features for the model.
+            The backbone should return an OrderedDict[Tensor], with the key being
+            "out" for the last feature map used, and "aux" if an auxiliary classifier
+            is used.
+        classifier (nn.Module): module that takes the "out" element returned from
+            the backbone and returns a dense prediction.
+        aux_classifier (nn.Module, optional): auxiliary classifier used during training
+    """
+    pass
+
+
+class FCNHead(nn.Sequential):
+    def __init__(self, in_channels, channels):
+        inter_channels = in_channels // 4
+        layers = [
+            nn.Conv2d(in_channels, inter_channels, 3, padding=1, bias=False),
+            nn.BatchNorm2d(inter_channels),
+            nn.ReLU(),
+            nn.Dropout(0.1),
+            nn.Conv2d(inter_channels, channels, 1)
+        ]
+
+        super(FCNHead, self).__init__(*layers)
+
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+            elif isinstance(m, (nn.BatchNorm2d, nn.GroupNorm)):
+                nn.init.constant_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
+
+
 class DeepLabV3(_SimpleSegmentationModel):
     """
     Implements DeepLabV3 model from
@@ -128,9 +171,9 @@ class DeepLabV3(_SimpleSegmentationModel):
 
 
 class DeepLabHead(nn.Sequential):
-    def __init__(self, in_channels, num_classes):
+    def __init__(self, in_channels, num_classes, dilation):
         super(DeepLabHead, self).__init__(
-            ASPP(in_channels, [6, 12, 18]),
+            ASPP(in_channels, [dilation, dilation*2, dilation*3]),
             nn.Conv2d(256, 256, 3, padding=1, bias=False),
             nn.BatchNorm2d(256),
             nn.ReLU(),

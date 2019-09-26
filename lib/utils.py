@@ -151,6 +151,7 @@ class Meter:
 
         if self.phase == 'train':
             print('summary: loss %.4f' % (loss)) 
+            return loss
         else:
             mean_dice = np.array(self.mean_dices).mean()
             max_dice = np.array(self.max_dices).mean(0)
@@ -160,7 +161,7 @@ class Meter:
                 max_dice_str += '%.4f ' % ii
             max_dice_str = max_dice_str.strip()
             print('summary: loss %.4f,  mean dice %.4f, max dice %s' % (loss, mean_dice, max_dice_str))
-        return loss, mean_dice
+            return loss, mean_dice
 
 
 def init(seed=69):

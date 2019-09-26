@@ -16,7 +16,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description='Train semantic seg')
     parser.add_argument('--data_folder', default='/DATA5_DB8/data/yanjia/data/steel_defect/train')
     parser.add_argument('--epoch', dest='num_epochs', default=61, type=int)
-    parser.add_argument('--work_dir', default=None, help='the dir to save logs and models')
+    parser.add_argument('--work_dir', default='tmp', help='the dir to save logs and models')
     parser.add_argument('--resume_from', default=None, help='the checkpoint file to resume from')
     parser.add_argument('--arch', choices=['Unet', 'deeplabv3_resnet50'], default='Unet')
     parser.add_argument('--backbone',default='resnet18',help='backbone')
@@ -27,9 +27,12 @@ def parse_args():
     parser.add_argument('--lr', type=float, default=5e-4)
     parser.add_argument('--gpu', type=int, default=0)
     parser.add_argument('--downsample', type=int, default=2)
-    parser.add_argument('--restart_epoch', type=int, default=20)
+    parser.add_argument('--restart_epoch', type=int, default=30)
     parser.add_argument('--need_split', action='store_true', default=False)
     parser.add_argument('--save_frequency', type=int, default=20)
+    parser.add_argument('--aspp_dilation', type=int, default=6)
+    parser.add_argument('--replace',help='replace_stride_with_dilation', type=str, default='0,0,1')
+    parser.add_argument('--freeze', action='store_true', default=False, help='whether freeze bn')
 
     args = parser.parse_args()
 
@@ -62,6 +65,9 @@ def main(args):
     lr = args.lr
     restart_epoch = args.restart_epoch
     save_frequency = args.save_frequency
+    aspp_dilation = args.aspp_dilation
+    replace_stride_with_dilation = [int(_) for _ in args.replace.split(',')]
+    freeze = args.freeze
 
     device = torch.device('cuda:0')
 
@@ -90,7 +96,9 @@ def main(args):
     if args.arch == 'Unet':
         model = Unet(model_name, encoder_weights='imagenet', classes=classes, activation=None, resume_fp=resume_fp)
     elif args.arch == 'deeplabv3_resnet50':
-        model = deeplabv3_resnet50(pretrained=False, progress=True, num_classes=4, aux_loss=None, resume_fp=resume_fp)
+        model = deeplabv3_resnet50(pretrained=False, progress=True, num_classes=4, 
+            aux_loss=None, resume_fp=resume_fp, aspp_dilation=aspp_dilation,
+            replace=replace_stride_with_dilation, freeze=freeze)
 
     ### 5. criterion
     criterion = torch.nn.BCEWithLogitsLoss()
