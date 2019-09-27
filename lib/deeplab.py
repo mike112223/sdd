@@ -4,9 +4,6 @@ from torch.nn import functional as F
 from collections import OrderedDict
 
 from torch.utils.model_zoo import load_url as load_state_dict_from_url
-from torchvision.models import resnet
-# from lib import resnet
-
 
 model_urls = {
     'deeplabv3_resnet50_coco': None,
@@ -14,7 +11,12 @@ model_urls = {
 }
 
 
-def _segm_resnet(name, backbone_name, num_classes, aux, aspp_dilation, replace, freeze, pretrained_backbone=True):
+def _segm_resnet(name, backbone_name, num_classes, aux, aspp_dilation, replace, freeze, multigrid, pretrained_backbone=True):
+    if multigrid:
+        from lib import resnet
+    else:
+        from torchvision.models import resnet
+
     backbone = resnet.__dict__[backbone_name](
         pretrained=pretrained_backbone,
         replace_stride_with_dilation=replace)
@@ -40,10 +42,10 @@ def _segm_resnet(name, backbone_name, num_classes, aux, aspp_dilation, replace, 
     return model
 
 
-def _load_model(arch_type, backbone, pretrained, progress, num_classes, aux_loss, resume_fp, aspp_dilation, replace, freeze, **kwargs):
+def _load_model(arch_type, backbone, pretrained, progress, num_classes, aux_loss, resume_fp, aspp_dilation, replace, freeze, multigrid, **kwargs):
     if pretrained:
         aux_loss = True
-    model = _segm_resnet(arch_type, backbone, num_classes, aux_loss, aspp_dilation, replace, freeze, **kwargs)
+    model = _segm_resnet(arch_type, backbone, num_classes, aux_loss, aspp_dilation, replace, freeze, multigrid, **kwargs)
     if pretrained:
         arch = arch_type + '_' + backbone + '_coco'
         model_url = model_urls[arch]
@@ -62,9 +64,9 @@ def _load_model(arch_type, backbone, pretrained, progress, num_classes, aux_loss
 
 
 def deeplabv3_resnet50(pretrained=False, progress=True,
-                       num_classes=21, aux_loss=None, resume_fp=None, aspp_dilation=6, replace=[0,0,1], freeze=False, **kwargs):
+                       num_classes=21, aux_loss=None, resume_fp=None, aspp_dilation=6, replace=[0,0,1], freeze=False, multigrid=False, **kwargs):
     return _load_model('deeplabv3', 'resnet50', pretrained, progress, num_classes, 
-        aux_loss, resume_fp, aspp_dilation, replace, freeze, **kwargs)
+        aux_loss, resume_fp, aspp_dilation, replace, freeze, multigrid, **kwargs)
 
 
 def deeplabv3_resnet101(pretrained=False, progress=True,

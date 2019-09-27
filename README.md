@@ -29,9 +29,9 @@ https://www.kaggle.com/c/severstal-steel-defect-detection/discussion/109174#late
 '''bash
 nohup python -u train.py \
     --gpu 2 --epoch 21 --arch deeplabv3_resnet50 \
-    --downsample 1 --val_batch 16 --train_batch 8 \
-    --work_dir workdir/deeplab_20-40 \
-    --resume_from workdir/deeplab/model_20.pth > workdir/20190926_0955.log 2>&1 &
+    --downsample 1 --val_batch 32 --train_batch 8 \
+    --work_dir /DATA5_DB8/data/yanjia/results/deeplab_20-40 \
+    --resume_from /DATA5_DB8/data/yanjia/results/deeplab/model_20.pth > workdir/20190926_1938.log 2>&1 &
 '''
 
 ## Unet
@@ -43,8 +43,8 @@ nohup python -u train.py \
 # test intruction template
 ## deeplabv3
 python valid.py \
-    --gpu 3 --val_batch 16 --downsample 1 \
-    --arch deeplabv3_resnet50 --ckpt_path workdir/deeplab/model_best.pth 
+    --gpu 3 --val_batch 32 --downsample 1 \
+    --arch deeplabv3_resnet50 --ckpt_path /DATA5_DB8/data/yanjia/results/deeplabv3_dilation2/model_best.pth 
 
 ## Unet
 python valid.py \

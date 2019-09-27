@@ -97,21 +97,23 @@ class Trainer(object):
             # self.scheduler.step()
 
             if val_score > self.best_score:
+                print('******** New dice optimal found, saving state ********')
                 state['best_score'] = self.best_score = val_score
+                print('save as %s/model_dice_best.pth' % savedir)
+                torch.save(state, '%s/model_dice_best.pth' % savedir)
 
             if val_loss < self.best_loss:
-                print('******** New optimal found, saving state ********')
+                print('******** New loss optimal found, saving state ********')
                 state['best_loss'] = self.best_loss = val_loss
-                if not os.path.exists(savedir):
-                    os.makedirs(savedir)
-                print('save as %s/model_best.pth' % savedir)
-                torch.save(state, '%s/model_best.pth' % savedir)
+                print('save as %s/model_loss_best.pth' % savedir)
+                torch.save(state, '%s/model_loss_best.pth' % savedir)
 
-            if epoch % self.save_frequency == 0 or epoch == self.num_epochs-1:
-                if not os.path.exists(savedir):
-                    os.makedirs(savedir)
+            if epoch % self.save_frequency == 0 and epoch != 0:
                 print('save as %s/model_%d.pth' % (savedir, epoch))
-                torch.save(state, '%s/model_%d.pth' % (savedir, epoch))                
+                torch.save(state, '%s/model_%d.pth' % (savedir, epoch))
+
+            print('save as %s/model_latest.pth' % (savedir, epoch))
+            torch.save(state, '%s/model_latest.pth' % (savedir, epoch))            
 
             print()
 
