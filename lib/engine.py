@@ -112,8 +112,8 @@ class Trainer(object):
                 print('save as %s/model_%d.pth' % (savedir, epoch))
                 torch.save(state, '%s/model_%d.pth' % (savedir, epoch))
 
-            print('save as %s/model_latest.pth' % (savedir, epoch))
-            torch.save(state, '%s/model_latest.pth' % (savedir, epoch))            
+            print('save as %s/model_latest.pth' % (savedir))
+            torch.save(state, '%s/model_latest.pth' % (savedir))            
 
             print()
 

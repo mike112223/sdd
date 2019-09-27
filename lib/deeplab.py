@@ -4,22 +4,21 @@ from torch.nn import functional as F
 from collections import OrderedDict
 
 from torch.utils.model_zoo import load_url as load_state_dict_from_url
+from lib import resnet
 
 model_urls = {
     'deeplabv3_resnet50_coco': None,
+    'deeplabv3_se_resnet50_coco': None,
     'deeplabv3_resnet101_coco': 'https://download.pytorch.org/models/deeplabv3_resnet101_coco-586e9e4e.pth',
 }
 
 
 def _segm_resnet(name, backbone_name, num_classes, aux, aspp_dilation, replace, freeze, multigrid, pretrained_backbone=True):
-    if multigrid:
-        from lib import resnet
-    else:
-        from torchvision.models import resnet
 
     backbone = resnet.__dict__[backbone_name](
         pretrained=pretrained_backbone,
-        replace_stride_with_dilation=replace)
+        replace_stride_with_dilation=replace, 
+        multigrid=multigrid)
 
     return_layers = {'layer4': 'out'}
     if aux:
@@ -68,6 +67,10 @@ def deeplabv3_resnet50(pretrained=False, progress=True,
     return _load_model('deeplabv3', 'resnet50', pretrained, progress, num_classes, 
         aux_loss, resume_fp, aspp_dilation, replace, freeze, multigrid, **kwargs)
 
+def deeplabv3_se_resnet50(pretrained=False, progress=True,
+                       num_classes=21, aux_loss=None, resume_fp=None, aspp_dilation=6, replace=[0,0,1], freeze=False, multigrid=False, **kwargs):
+    return _load_model('deeplabv3', 'se_resnet50', pretrained, progress, num_classes, 
+        aux_loss, resume_fp, aspp_dilation, replace, freeze, multigrid, **kwargs)
 
 def deeplabv3_resnet101(pretrained=False, progress=True,
                         num_classes=21, aux_loss=None, **kwargs):
