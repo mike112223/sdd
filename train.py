@@ -34,6 +34,7 @@ def parse_args():
     parser.add_argument('--replace',help='replace_stride_with_dilation', type=str, default='0,0,1')
     parser.add_argument('--freeze', action='store_true', default=False, help='whether freeze bn')
     parser.add_argument('--multigrid', action='store_true', default=False)
+    parser.add_argument('--aux_loss', action='store_true', default=False)
 
     args = parser.parse_args()
 
@@ -70,6 +71,7 @@ def main(args):
     replace_stride_with_dilation = [int(_) for _ in args.replace.split(',')]
     freeze = args.freeze
     multigrid = args.multigrid
+    aux_loss = args.aux_loss
 
     if not os.path.exists(savedir):
         os.makedirs(savedir)
@@ -102,15 +104,15 @@ def main(args):
         model = Unet(model_name, encoder_weights='imagenet', classes=classes, activation=None, resume_fp=resume_fp)
     elif args.arch == 'deeplabv3_resnet50':
         model = deeplabv3_resnet50(pretrained=False, progress=True, num_classes=4, 
-            aux_loss=None, resume_fp=resume_fp, aspp_dilation=aspp_dilation,
+            aux_loss=aux_loss, resume_fp=resume_fp, aspp_dilation=aspp_dilation,
             replace=replace_stride_with_dilation, freeze=freeze, multigrid=multigrid)
     elif args.arch == 'deeplabv3_se_resnet50':
         model = deeplabv3_se_resnet50(pretrained=False, progress=True, num_classes=4, 
-            aux_loss=None, resume_fp=resume_fp, aspp_dilation=aspp_dilation,
+            aux_loss=aux_loss, resume_fp=resume_fp, aspp_dilation=aspp_dilation,
             replace=replace_stride_with_dilation, freeze=freeze, multigrid=multigrid)  
     elif args.arch == 'deeplabv3_resnet101':
         model = deeplabv3_resnet101(pretrained=True, progress=True, num_classes=4, 
-            aux_loss=None, resume_fp=resume_fp, aspp_dilation=aspp_dilation,
+            aux_loss=aux_loss, resume_fp=resume_fp, aspp_dilation=aspp_dilation,
             replace=replace_stride_with_dilation, freeze=freeze, multigrid=multigrid)   
 
     ### 5. criterion

@@ -40,7 +40,10 @@ class Trainer(object):
         masks = targets.to(self.device)
         outputs = self.net(images)
         if isinstance(outputs, dict):
-            outputs = outputs['out']
+            if 'aux' in outputs.keys():
+                outputs = (outputs['out']+outputs['aux'])/2
+            else:
+                outputs = outputs['out']
 
         loss = self.criterion(outputs, masks)
         return loss, outputs
