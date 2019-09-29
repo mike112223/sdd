@@ -6,7 +6,7 @@ import numpy as np
 import argparse
 
 from lib.model import Unet  # import Unet model from the script
-from lib.deeplab import deeplabv3_resnet50, deeplabv3_se_resnet50
+from lib.deeplab import deeplabv3_resnet50, deeplabv3_se_resnet50, deeplabv3_resnet101
 from lib.engine import Trainer
 from lib.utils import init, plot
 from lib.data import provider
@@ -18,7 +18,7 @@ def parse_args():
     parser.add_argument('--epoch', dest='num_epochs', default=61, type=int)
     parser.add_argument('--work_dir', default='tmp', help='the dir to save logs and models')
     parser.add_argument('--resume_from', default=None, help='the checkpoint file to resume from')
-    parser.add_argument('--arch', choices=['Unet', 'deeplabv3_resnet50', 'deeplabv3_se_resnet50'], default='Unet')
+    parser.add_argument('--arch', choices=['Unet', 'deeplabv3_resnet50', 'deeplabv3_se_resnet50', 'deeplabv3_resnet101'], default='Unet')
     parser.add_argument('--backbone',default='resnet18',help='backbone')
     parser.add_argument('--classes', type=int, default=4)
     parser.add_argument('--num_workers', type=int, default=4)
@@ -107,7 +107,11 @@ def main(args):
     elif args.arch == 'deeplabv3_se_resnet50':
         model = deeplabv3_se_resnet50(pretrained=False, progress=True, num_classes=4, 
             aux_loss=None, resume_fp=resume_fp, aspp_dilation=aspp_dilation,
-            replace=replace_stride_with_dilation, freeze=freeze, multigrid=multigrid)     
+            replace=replace_stride_with_dilation, freeze=freeze, multigrid=multigrid)  
+    elif args.arch == 'deeplabv3_resnet101':
+        model = deeplabv3_resnet101(pretrained=True, progress=True, num_classes=4, 
+            aux_loss=None, resume_fp=resume_fp, aspp_dilation=aspp_dilation,
+            replace=replace_stride_with_dilation, freeze=freeze, multigrid=multigrid)   
 
     ### 5. criterion
     criterion = torch.nn.BCEWithLogitsLoss()

@@ -52,7 +52,16 @@ def _load_model(arch_type, backbone, pretrained, progress, num_classes, aux_loss
             raise NotImplementedError('pretrained {} is not supported as of now'.format(arch))
         else:
             state_dict = load_state_dict_from_url(model_url, progress=progress)
-            model.load_state_dict(state_dict)
+
+            model_dict = model.state_dict()
+            # 1. filter out unnecessary keys
+            state_dict = {k: v for k, v in model_dict.items() if k in state_dict}
+            # 2. overwrite entries in the existing state dict
+            model_dict.update(state_dict)
+            # 3. load the new state dict
+            model.load_state_dict(model_dict)
+
+            # model.load_state_dict(state_dict)
     elif resume_fp:
         print('load from %s' % resume_fp)
         state = torch.load(resume_fp, map_location=lambda storage, loc: storage)
@@ -73,8 +82,9 @@ def deeplabv3_se_resnet50(pretrained=False, progress=True,
         aux_loss, resume_fp, aspp_dilation, replace, freeze, multigrid, **kwargs)
 
 def deeplabv3_resnet101(pretrained=False, progress=True,
-                        num_classes=21, aux_loss=None, **kwargs):
-    return _load_model('deeplabv3', 'resnet101', pretrained, progress, num_classes, aux_loss, **kwargs)
+                       num_classes=21, aux_loss=None, resume_fp=None, aspp_dilation=6, replace=[0,0,1], freeze=False, multigrid=False, **kwargs):
+    return _load_model('deeplabv3', 'resnet101', pretrained, progress, num_classes, 
+        aux_loss, resume_fp, aspp_dilation, replace, freeze, multigrid, **kwargs)
 
 
 ###
@@ -97,7 +107,12 @@ class _SimpleSegmentationModel(nn.Module):
                     m.eval()
                     m.weight.requires_grad = False
                     m.bias.requires_grad = False
-                    
+            if aux_classifier:
+                for m in self.classifier.modules():
+                    if isinstance(m, nn.BatchNorm2d):
+                        m.eval()
+                        m.weight.requires_grad = False
+                        m.bias.requires_grad = False                
 
     def forward(self, x):
         input_shape = x.shape[-2:]

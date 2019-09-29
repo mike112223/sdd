@@ -19,7 +19,7 @@ class Trainer(object):
         self.lr = lr 
         self.num_epochs = num_epochs
         self.best_loss = float('inf')
-        self.best_score = float('inf')
+        self.best_score = float('-inf')
         torch.set_default_tensor_type('torch.cuda.FloatTensor')
         self.net = model
         self.criterion = criterion 

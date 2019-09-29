@@ -22,7 +22,7 @@ from albumentations.pytorch import ToTensor
 import torch.utils.data as data
 
 from lib.model import Unet # import Unet model from the script
-from lib.deeplab import deeplabv3_resnet50
+from lib.deeplab import deeplabv3_resnet50, deeplabv3_se_resnet50
 from lib.data import provider
 from lib.utils import init
 
@@ -32,7 +32,7 @@ def parse_args():
     parser.add_argument('--ckpt_path', default=None)
     parser.add_argument('--phase', default='val', type=str)
     parser.add_argument('--backbone',default='resnet18',help='backbone')
-    parser.add_argument('--arch', choices=['Unet', 'deeplabv3_resnet50'], default='Unet')
+    parser.add_argument('--arch', choices=['Unet', 'deeplabv3_resnet50', 'deeplabv3_se_resnet50'], default='Unet')
     parser.add_argument('--classes', type=int, default=4)
     parser.add_argument('--num_workers', type=int, default=4)
     parser.add_argument('--train_batch', type=int, default=16)
@@ -44,6 +44,7 @@ def parse_args():
     parser.add_argument('--aspp_dilation', type=int, default=6)
     parser.add_argument('--replace',help='replace_stride_with_dilation', type=str, default='0,0,1')
     parser.add_argument('--freeze', action='store_true', default=False, help='whether freeze bn')
+    parser.add_argument('--multigrid', action='store_true', default=False)
 
     args = parser.parse_args()
 
@@ -155,6 +156,7 @@ def main(args):
     aspp_dilation = args.aspp_dilation
     replace_stride_with_dilation = [int(_) for _ in args.replace.split(',')]
     freeze = args.freeze
+    multigrid = args.multigrid
 
     test_data_folder = '%s/images' % data_folder
 
@@ -183,7 +185,11 @@ def main(args):
     elif args.arch == 'deeplabv3_resnet50':
         model = deeplabv3_resnet50(pretrained=False, progress=True, num_classes=4, 
             aux_loss=None, resume_fp=None, aspp_dilation=aspp_dilation,
-            replace=replace_stride_with_dilation, freeze=freeze)
+            replace=replace_stride_with_dilation, freeze=freeze, multigrid=multigrid)
+    elif args.arch == 'deeplabv3_se_resnet50':
+        model = deeplabv3_se_resnet50(pretrained=False, progress=True, num_classes=4, 
+            aux_loss=None, resume_fp=None, aspp_dilation=aspp_dilation,
+            replace=replace_stride_with_dilation, freeze=freeze, multigrid=multigrid)  
 
     model.to(device)
     model.eval()
