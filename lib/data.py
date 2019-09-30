@@ -58,7 +58,7 @@ class SteelDataset(Dataset):
         image_id, mask = make_mask(idx, self.df)
         image_path = os.path.join(self.root, 'images',  image_id)
         img = cv2.imread(image_path)
-        if self.patch and not self.inference:
+        if self.patch and self.phase == 'train':
             ## vis 
             # print('aaaaaaaaa')       
             # color_dict = {

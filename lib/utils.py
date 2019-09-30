@@ -212,15 +212,51 @@ def pad_to_bounding_box(img, mask, crop_size, offset_height, offset_width):
                 'constant', constant_values=np.repeat(ignore_value,6).reshape(3,2))
     return img, mask
 
-def random_crop(image_list, crop_size):
-    image_height, image_width, _ = image_list[0].shape 
+# def random_crop(image_list, crop_size):
+#     image_height, image_width, _ = image_list[0].shape 
+
+#     max_offset_height = image_height - crop_size + 1
+#     max_offset_width = image_width - crop_size + 1
+#     offset_height = np.random.randint(0, max_offset_height)
+#     offset_width = np.random.randint(0, max_offset_width)
+
+#     print('offset:', offset_height, offset_width)
+
+#     return [image[offset_height:offset_height+crop_size,offset_width:offset_width+crop_size,:] for image in image_list]
+
+def random_crop(image_list, crop_size, iof_thresh=0.3, area_thresh=100):
+
+    img = image_list[0]
+    mask = image_list[1]
+    image_height, image_width, _ = img.shape
 
     max_offset_height = image_height - crop_size + 1
     max_offset_width = image_width - crop_size + 1
-    offset_height = np.random.randint(0, max_offset_height)
-    offset_width = np.random.randint(0, max_offset_width)
+
+    fg_pixels = np.where(mask == 1)
+    while True:
+        if len(fg_pixels[0]):
+            idx = np.random.randint(0, len(fg_pixels[0]))
+            y, x, label = fg_pixels[0][idx], fg_pixels[1][idx], fg_pixels[2][idx]
+
+            y = max(0, y-crop_size//2)
+            x = max(0, x-crop_size//2)
+
+            offset_height = y if y < max_offset_height else np.random.randint(0, max_offset_height)
+            offset_width = x if x < max_offset_width else np.random.randint(0, max_offset_width)
+
+            crop_mask = mask[offset_height:offset_height+crop_size,offset_width:offset_width+crop_size,label]
+            area = len(np.where(crop_mask==1)[0])
+            iof = area/len(np.where(mask[:,:,label]==1)[0])
+            # print(area, iof)
+            if iof > iof_thresh or area > area_thresh:
+                break
+
+        else:
+            offset_height = np.random.randint(0, max_offset_height)
+            offset_width = np.random.randint(0, max_offset_width)
+            break
 
     # print('offset:', offset_height, offset_width)
 
     return [image[offset_height:offset_height+crop_size,offset_width:offset_width+crop_size,:] for image in image_list]
-

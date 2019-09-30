@@ -22,7 +22,7 @@ from albumentations.pytorch import ToTensor
 import torch.utils.data as data
 
 from lib.model import Unet # import Unet model from the script
-from lib.deeplab import deeplabv3_resnet50, deeplabv3_se_resnet50
+from lib import deeplab
 from lib.data import provider
 from lib.utils import init
 
@@ -46,6 +46,7 @@ def parse_args():
     parser.add_argument('--freeze', action='store_true', default=False, help='whether freeze bn')
     parser.add_argument('--multigrid', action='store_true', default=False)
     parser.add_argument('--aux_loss', action='store_true', default=False)
+    parser.add_argument('--inference', action='store_true', default=False)
 
     args = parser.parse_args()
 
@@ -160,6 +161,7 @@ def main(args):
     freeze = args.freeze
     multigrid = args.multigrid
     aux_loss = args.aux_loss
+    inference = args.inference
 
     test_data_folder = '%s/images' % data_folder
 
@@ -171,8 +173,8 @@ def main(args):
                 std=(0.229, 0.224, 0.225),
                 batch_sizes={'train': args.train_batch, 'val': args.val_batch},
                 num_workers=2,
-                inference
-                need_split=args.need_split,
+                inference=inference,
+                need_split=need_split,
                 train_df=train_df, 
                 val_df=val_df,
                 downsample=downsample,
@@ -188,7 +190,7 @@ def main(args):
         model = Unet('resnet18', encoder_weights=None, classes=4, activation=None)
     else:
         model = deeplab.__dict__[arch](pretrained=False, progress=True, num_classes=4, 
-            aux_loss=aux_loss, resume_fp=resume_fp, aspp_dilation=aspp_dilation,
+            aux_loss=aux_loss, resume_fp=None, aspp_dilation=aspp_dilation,
             replace=replace_stride_with_dilation, freeze=freeze, multigrid=multigrid)
 
     model.to(device)
@@ -220,7 +222,10 @@ def main(args):
                 #batch_preds_1 = torch.roll(batch_preds_shift, 32, 3)
             outputs = model(images.to(device))
             if isinstance(outputs, dict):
-                outputs = outputs['out']
+                if 'aux' in outputs.keys():
+                    outputs = (outputs['out']+outputs['aux'])/2
+                else:
+                    outputs = outputs['out']
 
             batch_preds_2 = torch.sigmoid(outputs)
 

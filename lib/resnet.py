@@ -19,6 +19,7 @@ model_urls = {
     'wide_resnet50_2': 'https://download.pytorch.org/models/wide_resnet50_2-95faca4d.pth',
     'wide_resnet101_2': 'https://download.pytorch.org/models/wide_resnet101_2-32ee1156.pth',
     'se_resnet50': "https://github.com/moskomule/senet.pytorch/releases/download/archive/seresnet50-60a8950a85b2b.pkl",
+    'scse_resnet50': 'https://download.pytorch.org/models/resnet50-19c8e357.pth',
 }
 
 
@@ -67,6 +68,53 @@ class SEBasicBlock(nn.Module):
 
         return out
 
+class scSEBottleneck(nn.Module):
+    expansion = 4
+
+    def __init__(self, inplanes, planes, stride=1, downsample=None, groups=1,
+                 base_width=64, dilation=1, norm_layer=None,
+                 multigrid=False, layer=1, reduction=4):
+        super(scSEBottleneck, self).__init__()
+        if norm_layer is None:
+            norm_layer = nn.BatchNorm2d
+        width = int(planes * (base_width / 64.)) * groups
+        # Both self.conv2 and self.downsample layers downsample the input when stride != 1
+        self.conv1 = conv1x1(inplanes, width)
+        self.bn1 = norm_layer(width)
+        if dilation > 1 and multigrid:
+            self.conv2 = conv3x3(width, width, stride, groups, dilation*layer)
+        else:
+            self.conv2 = conv3x3(width, width, stride, groups, dilation)
+        self.bn2 = norm_layer(width)
+        self.conv3 = conv1x1(width, planes * self.expansion)
+        self.bn3 = norm_layer(planes * self.expansion)
+        self.relu = nn.ReLU(inplace=True)
+        self.scse = scSELayer(planes * self.expansion, reduction) 
+        self.downsample = downsample
+        self.stride = stride
+
+    def forward(self, x):
+        residual = x
+
+        out = self.conv1(x)
+        out = self.bn1(out)
+        out = self.relu(out)
+
+        out = self.conv2(out)
+        out = self.bn2(out)
+        out = self.relu(out)
+
+        out = self.conv3(out)
+        out = self.bn3(out)
+        out = self.scse(out)
+
+        if self.downsample is not None:
+            residual = self.downsample(x)
+
+        out += residual
+        out = self.relu(out)
+
+        return out
 
 class SEBottleneck(nn.Module):
     expansion = 4
@@ -89,7 +137,7 @@ class SEBottleneck(nn.Module):
         self.conv3 = conv1x1(width, planes * self.expansion)
         self.bn3 = norm_layer(planes * self.expansion)
         self.relu = nn.ReLU(inplace=True)
-        self.se = SELayer(planes * self.expansion, reduction)
+        self.se = SELayer(planes * self.expansion, reduction) 
         self.downsample = downsample
         self.stride = stride
 
@@ -115,6 +163,43 @@ class SEBottleneck(nn.Module):
         out = self.relu(out)
 
         return out
+
+class SpatialAttention2d(nn.Module):
+    def __init__(self, channel):
+        super(SpatialAttention2d, self).__init__()
+        self.squeeze = nn.Conv2d(channel, 1, kernel_size=1, bias=False)
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, x):
+        z = self.squeeze(x)
+        z = self.sigmoid(z)
+        return x * z
+
+
+class GAB(nn.Module):
+    def __init__(self, input_dim, reduction=4):
+        super(GAB, self).__init__()
+        self.global_avgpool = nn.AdaptiveAvgPool2d(1)
+        self.conv1 = nn.Conv2d(input_dim, input_dim // reduction, kernel_size=1, stride=1)
+        self.conv2 = nn.Conv2d(input_dim // reduction, input_dim, kernel_size=1, stride=1)
+        self.relu = nn.ReLU(inplace=True)
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, x):
+        z = self.global_avgpool(x)
+        z = self.relu(self.conv1(z))
+        z = self.sigmoid(self.conv2(z))
+        return x * z
+
+class scSELayer(nn.Module):
+    def __init__(self, dim, reduction=4):
+        super(scSELayer, self).__init__()
+        self.satt = SpatialAttention2d(dim)
+        self.catt = GAB(dim, reduction)
+
+    def forward(self, x):
+        return self.satt(x) + self.catt(x)
+
 
 class SELayer(nn.Module):
     def __init__(self, channel, reduction=16):
@@ -322,7 +407,13 @@ def _resnet(arch, block, layers, pretrained, progress, **kwargs):
         print('load %s pretrain model!!!'%arch)
         state_dict = load_state_dict_from_url(model_urls[arch],
                                               progress=progress)
-        model.load_state_dict(state_dict)
+        model_dict = model.state_dict()
+        # 1. filter out unnecessary keys
+        state_dict = {k: v for k, v in model_dict.items() if k in state_dict}
+        # 2. overwrite entries in the existing state dict
+        model_dict.update(state_dict)
+        # 3. load the new state dict
+        model.load_state_dict(model_dict)
     return model
 
 
@@ -332,6 +423,14 @@ def se_resnet50(pretrained=True, progress=True, **kwargs):
         pretrained (bool): If True, returns a model pre-trained on ImageNet
     """
     return _resnet('se_resnet50', SEBottleneck, [3, 4, 6, 3], pretrained, progress,
+                   **kwargs)
+
+def scse_resnet50(pretrained=True, progress=True, **kwargs):
+    """Constructs a SE-ResNet-50 model.
+    Args:
+        pretrained (bool): If True, returns a model pre-trained on ImageNet
+    """
+    return _resnet('scse_resnet50', scSEBottleneck, [3, 4, 6, 3], pretrained, progress,
                    **kwargs)
 
 

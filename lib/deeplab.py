@@ -81,6 +81,11 @@ def deeplabv3_se_resnet50(pretrained=False, progress=True,
     return _load_model('deeplabv3', 'se_resnet50', pretrained, progress, num_classes, 
         aux_loss, resume_fp, aspp_dilation, replace, freeze, multigrid, **kwargs)
 
+def deeplabv3_scse_resnet50(pretrained=False, progress=True,
+                       num_classes=21, aux_loss=None, resume_fp=None, aspp_dilation=6, replace=[0,0,1], freeze=False, multigrid=False, **kwargs):
+    return _load_model('deeplabv3', 'scse_resnet50', pretrained, progress, num_classes, 
+        aux_loss, resume_fp, aspp_dilation, replace, freeze, multigrid, **kwargs)
+
 def deeplabv3_resnet101(pretrained=False, progress=True,
                        num_classes=21, aux_loss=None, resume_fp=None, aspp_dilation=6, replace=[0,0,1], freeze=False, multigrid=False, **kwargs):
     return _load_model('deeplabv3', 'resnet101', pretrained, progress, num_classes, 

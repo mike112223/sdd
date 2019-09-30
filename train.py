@@ -11,6 +11,7 @@ from lib.utils import init, plot
 from lib.data import provider
 from lib.loss import BalanceBCE, DiceLoss
 from lib import deeplab
+from lib import salt_unet
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Train semantic seg')
@@ -18,7 +19,10 @@ def parse_args():
     parser.add_argument('--epoch', dest='num_epochs', default=61, type=int)
     parser.add_argument('--work_dir', default='tmp', help='the dir to save logs and models')
     parser.add_argument('--resume_from', default=None, help='the checkpoint file to resume from')
-    parser.add_argument('--arch', choices=['Unet', 'deeplabv3_resnet50', 'deeplabv3_se_resnet50', 'deeplabv3_resnet101'], default='Unet')
+    parser.add_argument('--arch', 
+                        choices=['Unet', 'deeplabv3_resnet50', 'deeplabv3_se_resnet50', 
+                                'deeplabv3_resnet101', 'deeplabv3_scse_resnet50', 'Res18Unetv4'], 
+                        default='Unet')
     parser.add_argument('--backbone',default='resnet18',help='backbone')
     parser.add_argument('--classes', type=int, default=4)
     parser.add_argument('--num_workers', type=int, default=4)
@@ -108,10 +112,12 @@ def main(args):
     ### 4. model
     if arch == 'Unet':
         model = Unet(model_name, encoder_weights='imagenet', classes=classes, activation=None, resume_fp=resume_fp)
-    else:
+    elif 'deeplabv3' in arch:
         model = deeplab.__dict__[arch](pretrained=False, progress=True, num_classes=4, 
             aux_loss=aux_loss, resume_fp=resume_fp, aspp_dilation=aspp_dilation,
             replace=replace_stride_with_dilation, freeze=freeze, multigrid=multigrid)
+    else:
+        model = salt_unet.__dict__[arch](classes)
 
     ### 5. criterion
     criterion = torch.nn.BCEWithLogitsLoss()
