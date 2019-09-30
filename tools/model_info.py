@@ -1,5 +1,6 @@
 import torch
 import argparse
+import os
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Train semantic seg')
@@ -18,13 +19,17 @@ def main(args):
     os.environ['CUDA_VISIBLE_DEVICES'] = '%d'%(args.gpu)
 
     for i, path in enumerate(args.folder):
-        model_path = prefix+path+'/model_%s.pth'%args.postfix
-        model = torch.load(model_path)
+        model_paths = os.listdir(prefix+path)
         print('----------------')
         print(path)
-        print(model['epoch'])
-        # print(model['best_score'])
-        print(model['best_loss'])
+        for model_path in model_paths:
+            abs_model_path = prefix+path+'/'+model_path
+            model = torch.load(abs_model_path)
+            print('*****')
+            print(model_path)
+            print(model['epoch'])
+            print(model['score'])
+            print(model['best_loss'])
 
 if __name__ == '__main__':
     main(parse_args())

@@ -6,11 +6,11 @@ import numpy as np
 import argparse
 
 from lib.model import Unet  # import Unet model from the script
-from lib.deeplab import deeplabv3_resnet50, deeplabv3_se_resnet50, deeplabv3_resnet101
 from lib.engine import Trainer
 from lib.utils import init, plot
 from lib.data import provider
 from lib.loss import BalanceBCE, DiceLoss
+from lib import deeplab
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Train semantic seg')
@@ -35,6 +35,8 @@ def parse_args():
     parser.add_argument('--freeze', action='store_true', default=False, help='whether freeze bn')
     parser.add_argument('--multigrid', action='store_true', default=False)
     parser.add_argument('--aux_loss', action='store_true', default=False)
+    parser.add_argument('--patch', action='store_true', default=False)
+    parser.add_argument('--patience', type=int, default=3)
 
     args = parser.parse_args()
 
@@ -63,6 +65,7 @@ def main(args):
     num_workers = args.num_workers
     savedir = args.work_dir
     resume_fp = args.resume_from
+    arch = args.arch
     downsample = args.downsample
     lr = args.lr
     restart_epoch = args.restart_epoch
@@ -72,6 +75,8 @@ def main(args):
     freeze = args.freeze
     multigrid = args.multigrid
     aux_loss = args.aux_loss
+    patch = args.patch
+    patience = args.patience
 
     if not os.path.exists(savedir):
         os.makedirs(savedir)
@@ -96,31 +101,25 @@ def main(args):
                     need_split=need_split,
                     train_df=train_df, 
                     val_df=val_df,
-                    downsample=downsample
+                    downsample=downsample,
+                    patch=patch
                     )
 
     ### 4. model
-    if args.arch == 'Unet':
+    if arch == 'Unet':
         model = Unet(model_name, encoder_weights='imagenet', classes=classes, activation=None, resume_fp=resume_fp)
-    elif args.arch == 'deeplabv3_resnet50':
-        model = deeplabv3_resnet50(pretrained=False, progress=True, num_classes=4, 
+    else:
+        model = deeplab.__dict__[arch](pretrained=False, progress=True, num_classes=4, 
             aux_loss=aux_loss, resume_fp=resume_fp, aspp_dilation=aspp_dilation,
             replace=replace_stride_with_dilation, freeze=freeze, multigrid=multigrid)
-    elif args.arch == 'deeplabv3_se_resnet50':
-        model = deeplabv3_se_resnet50(pretrained=False, progress=True, num_classes=4, 
-            aux_loss=aux_loss, resume_fp=resume_fp, aspp_dilation=aspp_dilation,
-            replace=replace_stride_with_dilation, freeze=freeze, multigrid=multigrid)  
-    elif args.arch == 'deeplabv3_resnet101':
-        model = deeplabv3_resnet101(pretrained=True, progress=True, num_classes=4, 
-            aux_loss=aux_loss, resume_fp=resume_fp, aspp_dilation=aspp_dilation,
-            replace=replace_stride_with_dilation, freeze=freeze, multigrid=multigrid)   
 
     ### 5. criterion
     criterion = torch.nn.BCEWithLogitsLoss()
     #criterion = DiceLoss() #BalanceBCE(5)
 
     ### 6. trainer
-    trainer = Trainer(model, criterion, dataloader, phases, batch_sizes, lr, num_epochs, device, restart_epoch, save_frequency)
+    trainer = Trainer(model, criterion, dataloader, phases, batch_sizes, 
+                    lr, num_epochs, device, restart_epoch, save_frequency, patience)
     trainer.start(savedir)
 
 

@@ -11,19 +11,37 @@ from torch.utils.data import DataLoader, Dataset, sampler
 from albumentations import (HorizontalFlip, VerticalFlip, RandomBrightnessContrast, RandomGamma, ShiftScaleRotate, Normalize, Resize, Compose, GaussNoise)
 from albumentations.pytorch import ToTensor
 
-from .utils import make_mask
+from .utils import make_mask, random_scaling, pad_to_bounding_box, random_crop
 
 
 def downsample(mask, kernel_size, thresh):
     mask = mask.float()
     new_mask = F.avg_pool2d(mask.unsqueeze(0), kernel_size, kernel_size)
-    new_mask = new_mask.squeeze() > thresh
-    #new_mask = new_mask.squeeze()
+    # new_mask = new_mask.squeeze() > thresh
+    new_mask = new_mask.squeeze()
     return new_mask.float()
 
+def mask2contours(mask):
+
+    mask = mask*255
+
+    mask_shape = mask.shape
+    width = mask_shape[0]
+    height = mask_shape[1]
+
+    contour_mask = np.zeros([width, height, 3], np.uint8)
+
+    contours, _ = cv2.findContours(mask, cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
+    for i in range(0, len(contours)):
+        cv2.polylines(contour_mask, contours[i], True, (255,255,255), 2)
+
+    contour_mask = cv2.cvtColor(contour_mask, cv2.COLOR_BGR2GRAY)
+    ret, contour_mask = cv2.threshold(contour_mask, 200, 255, cv2.THRESH_BINARY)
+
+    return contour_mask
 
 class SteelDataset(Dataset):
-    def __init__(self, df, data_folder, mean, std, phase, inference=False, downsample=1):
+    def __init__(self, df, data_folder, mean, std, phase, inference=False, downsample=1, patch=False, crop_size=256):
         self.df = df
         self.root = data_folder
         self.mean = mean
@@ -33,11 +51,36 @@ class SteelDataset(Dataset):
         self.fnames = self.df.index.tolist()
         self.inference = inference
         self.downsample = downsample
+        self.patch = patch
+        self.crop_size = crop_size
 
     def __getitem__(self, idx):
         image_id, mask = make_mask(idx, self.df)
         image_path = os.path.join(self.root, 'images',  image_id)
         img = cv2.imread(image_path)
+        if self.patch and not self.inference:
+            ## vis 
+            # print('aaaaaaaaa')       
+            # color_dict = {
+            #     0: (255, 0, 0),
+            #     1: (0, 255, 0),
+            #     2: (0, 0, 255),
+            #     3: (0, 150, 255),
+            # }
+            # mask = mask.astype(np.uint8)
+            # print(mask.shape)
+            # for j in range(4):
+            #     _mask = mask2contours(mask[:,:,j])
+            #     img[_mask > 0] = color_dict[j]
+            # cv2.imshow('ori',img)
+
+            # 1.random scaling
+            img, mask = random_scaling(img, mask)
+            # 2.padding
+            img, mask = pad_to_bounding_box(img, mask, self.crop_size, 0, 0)
+            # 3.random crop
+            img, mask = random_crop([img, mask], self.crop_size)
+
         augmented = self.transforms(image=img, mask=mask)
         img = augmented['image']
         mask = augmented['mask'] # 256x1600x4
@@ -99,7 +142,8 @@ def provider(
     need_split=True,
     train_df=None, 
     val_df=None,
-    downsample=1
+    downsample=1,
+    patch=False
 ):
     '''Returns dataloader for the model training'''
     if need_split:
@@ -129,7 +173,7 @@ def provider(
     dataloaders = {}
     for phase in phases:
         df = train_df if phase == "train" else val_df
-        image_dataset = SteelDataset(df, data_folder, mean, std, phase, inference, downsample)
+        image_dataset = SteelDataset(df, data_folder, mean, std, phase, inference, downsample, patch)
         dataloader = DataLoader(
             image_dataset,
             batch_size=batch_sizes[phase],

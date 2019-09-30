@@ -45,6 +45,7 @@ def parse_args():
     parser.add_argument('--replace',help='replace_stride_with_dilation', type=str, default='0,0,1')
     parser.add_argument('--freeze', action='store_true', default=False, help='whether freeze bn')
     parser.add_argument('--multigrid', action='store_true', default=False)
+    parser.add_argument('--aux_loss', action='store_true', default=False)
 
     args = parser.parse_args()
 
@@ -144,6 +145,7 @@ def main(args):
     ckpt_path = args.ckpt_path
     cache = 'pred_%s.pkl'%args.phase
 
+    arch = args.arch
     data_folder = args.data_folder
     total_df_path = '%s/train.csv' % data_folder
     train_df = '%s/../split_train.csv' % data_folder
@@ -157,6 +159,7 @@ def main(args):
     replace_stride_with_dilation = [int(_) for _ in args.replace.split(',')]
     freeze = args.freeze
     multigrid = args.multigrid
+    aux_loss = args.aux_loss
 
     test_data_folder = '%s/images' % data_folder
 
@@ -168,10 +171,11 @@ def main(args):
                 std=(0.229, 0.224, 0.225),
                 batch_sizes={'train': args.train_batch, 'val': args.val_batch},
                 num_workers=2,
+                inference
                 need_split=args.need_split,
                 train_df=train_df, 
                 val_df=val_df,
-                downsample=downsample
+                downsample=downsample,
                 )['val']
 
     inv_mean = tuple(-ii[0]/ii[1] for ii in zip(mean, std))
@@ -180,16 +184,12 @@ def main(args):
 
     device = torch.device('cuda')
 
-    if args.arch == 'Unet':
+    if arch == 'Unet':
         model = Unet('resnet18', encoder_weights=None, classes=4, activation=None)
-    elif args.arch == 'deeplabv3_resnet50':
-        model = deeplabv3_resnet50(pretrained=False, progress=True, num_classes=4, 
-            aux_loss=None, resume_fp=None, aspp_dilation=aspp_dilation,
+    else:
+        model = deeplab.__dict__[arch](pretrained=False, progress=True, num_classes=4, 
+            aux_loss=aux_loss, resume_fp=resume_fp, aspp_dilation=aspp_dilation,
             replace=replace_stride_with_dilation, freeze=freeze, multigrid=multigrid)
-    elif args.arch == 'deeplabv3_se_resnet50':
-        model = deeplabv3_se_resnet50(pretrained=False, progress=True, num_classes=4, 
-            aux_loss=None, resume_fp=None, aspp_dilation=aspp_dilation,
-            replace=replace_stride_with_dilation, freeze=freeze, multigrid=multigrid)  
 
     model.to(device)
     model.eval()

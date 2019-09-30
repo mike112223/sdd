@@ -11,11 +11,18 @@ from .utils import Meter
 
 class Trainer(object):
     '''This class takes care of training and validation of our model'''
-    def __init__(self, model, criterion, dataloaders, phases, batch_size, lr, num_epochs, device, restart_epoch, save_frequency):
+    def __init__(self, model, criterion, dataloaders, phases, 
+        batch_size, lr, num_epochs, device, restart_epoch, 
+        save_frequency, patience):
 
         self.device = device
-        self.batch_size = batch_size 
-        self.accumulation_steps = 32 // self.batch_size['train']
+        self.batch_size = batch_size
+
+        if self.batch_size['train'] <= 32:
+            self.accumulation_steps = 32 // self.batch_size['train']
+        else:
+            self.accumulation_steps = 1
+
         self.lr = lr 
         self.num_epochs = num_epochs
         self.best_loss = float('inf')
@@ -24,7 +31,8 @@ class Trainer(object):
         self.net = model
         self.criterion = criterion 
         self.optimizer = optim.Adam(self.net.parameters(), lr=self.lr)
-        self.scheduler = ReduceLROnPlateau(self.optimizer, mode='min', patience=3, verbose=True)
+        self.patience = patience
+        self.scheduler = ReduceLROnPlateau(self.optimizer, mode='min', patience=self.patience, verbose=True)
         # self.optimizer = optim.SGD(self.net.parameters(), lr=self.lr, momentum=0.9, weight_decay=1e-4)
         # self.scheduler = StepLR(self.optimizer, step_size=self.num_epochs//3, gamma=0.1)
 
@@ -36,6 +44,9 @@ class Trainer(object):
         self.dataloaders = dataloaders
         
     def forward(self, images, targets):
+
+        ignore_mask = targets==-255
+
         images = images.to(self.device)
         masks = targets.to(self.device)
         outputs = self.net(images)
@@ -44,6 +55,9 @@ class Trainer(object):
                 outputs = (outputs['out']+outputs['aux'])/2
             else:
                 outputs = outputs['out']
+
+        outputs[ignore_mask] = 0
+        masks[ignore_mask] = 0
 
         loss = self.criterion(outputs, masks)
         return loss, outputs
@@ -76,10 +90,6 @@ class Trainer(object):
 
     def start(self, savedir):
         for epoch in range(self.num_epochs):
-            if epoch % self.restart_epoch == 0:
-                print('reset lr')
-                for param_group in self.optimizer.param_groups:
-                    param_group['lr'] = self.lr
 
             start = time.strftime('%m/%d-%H:%M:%S')
             print(f'Starting epoch: {epoch} | phase: train | {start}')
@@ -116,7 +126,12 @@ class Trainer(object):
                 torch.save(state, '%s/model_%d.pth' % (savedir, epoch))
 
             print('save as %s/model_latest.pth' % (savedir))
-            torch.save(state, '%s/model_latest.pth' % (savedir))            
+            torch.save(state, '%s/model_latest.pth' % (savedir))     
+
+            if epoch % self.restart_epoch == 0:
+                print('reset lr')
+                for param_group in self.optimizer.param_groups:
+                    param_group['lr'] = self.lr       
 
             print()
 

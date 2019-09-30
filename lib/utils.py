@@ -184,3 +184,43 @@ def plot(scores, name):
     plt.title(f'{name} plot'); plt.xlabel('Epoch'); plt.ylabel(f'{name}');
     plt.legend(); 
     plt.show()
+
+
+def random_scaling(img, mask, min_scale_factor=0.5, max_scale_factor=2.0):
+    scale = np.random.uniform(min_scale_factor, max_scale_factor)
+    # print('scale:',scale)
+    h, w, _ = img.shape
+    scale_w, scale_h = int(scale*w), int(scale*h)
+    # print(scale_h, scale_w)
+    img = cv2.resize(img, (scale_w, scale_h), interpolation=cv2.INTER_LINEAR)
+    mask = cv2.resize(mask, (scale_w, scale_h), interpolation=cv2.INTER_NEAREST)
+
+    return img, mask
+
+def pad_to_bounding_box(img, mask, crop_size, offset_height, offset_width):
+    pad_value = [123.675, 116.28 ,103.53]
+    ignore_value = -255
+    h, w, _ = img.shape
+    target_height = max(crop_size - h, 0)
+    target_width = max(crop_size - w, 0)
+    # print('padding:', target_height, target_width)
+
+    img = np.pad(img, ((offset_height, target_height),(offset_width,target_width),(0,0)),
+                'constant', constant_values=np.repeat(pad_value,2).reshape(3,2))
+
+    mask = np.pad(mask, ((offset_height, target_height),(offset_width,target_width),(0,0)),
+                'constant', constant_values=np.repeat(ignore_value,6).reshape(3,2))
+    return img, mask
+
+def random_crop(image_list, crop_size):
+    image_height, image_width, _ = image_list[0].shape 
+
+    max_offset_height = image_height - crop_size + 1
+    max_offset_width = image_width - crop_size + 1
+    offset_height = np.random.randint(0, max_offset_height)
+    offset_width = np.random.randint(0, max_offset_width)
+
+    # print('offset:', offset_height, offset_width)
+
+    return [image[offset_height:offset_height+crop_size,offset_width:offset_width+crop_size,:] for image in image_list]
+
