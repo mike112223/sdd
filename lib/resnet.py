@@ -18,6 +18,7 @@ model_urls = {
     'resnext101_32x8d': 'https://download.pytorch.org/models/resnext101_32x8d-8ba56ff5.pth',
     'wide_resnet50_2': 'https://download.pytorch.org/models/wide_resnet50_2-95faca4d.pth',
     'wide_resnet101_2': 'https://download.pytorch.org/models/wide_resnet101_2-32ee1156.pth',
+    # 'se_resnet50': "https://download.pytorch.org/models/resnet50-19c8e357.pth",
     'se_resnet50': "https://github.com/moskomule/senet.pytorch/releases/download/archive/seresnet50-60a8950a85b2b.pkl",
     'scse_resnet50': 'https://download.pytorch.org/models/resnet50-19c8e357.pth',
 }

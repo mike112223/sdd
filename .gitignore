@@ -5,3 +5,4 @@ workdir/
 *.json
 *.pkl
 test.py
+lib/.*
