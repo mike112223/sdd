@@ -113,7 +113,7 @@ class _SimpleSegmentationModel(nn.Module):
                     m.weight.requires_grad = False
                     m.bias.requires_grad = False
             if aux_classifier:
-                for m in self.classifier.modules():
+                for m in self.aux_classifier.modules():
                     if isinstance(m, nn.BatchNorm2d):
                         m.eval()
                         m.weight.requires_grad = False
@@ -201,9 +201,6 @@ class DeepLabHead(nn.Sequential):
             ASPP(in_channels, [dilation, dilation*2, dilation*3]),
             nn.Conv2d(256, 256, 3, padding=1, bias=False),
             nn.BatchNorm2d(256),
-	    ### insert seblock
-	    # resnet.SELayer(256),
-	    # resnet.scSELayer(256),
             nn.ReLU(),
             nn.Conv2d(256, num_classes, 1)
         )

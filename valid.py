@@ -22,7 +22,7 @@ from albumentations.pytorch import ToTensor
 import torch.utils.data as data
 
 from lib.model import Unet # import Unet model from the script
-from lib import deeplab, salt_unet
+from lib import deeplab
 from lib.data import provider
 from lib.utils import init
 
@@ -32,7 +32,7 @@ def parse_args():
     parser.add_argument('--ckpt_path', default=None)
     parser.add_argument('--phase', default='val', type=str)
     parser.add_argument('--backbone',default='resnet18',help='backbone')
-    parser.add_argument('--arch', choices=['Unet', 'Res18Unetv4',  'deeplabv3_resnet50', 'deeplabv3_se_resnet50', 'deeplabv3_scse_resnet50'], default='Unet')
+    parser.add_argument('--arch', choices=['Unet', 'deeplabv3_resnet50', 'deeplabv3_se_resnet50'], default='Unet')
     parser.add_argument('--classes', type=int, default=4)
     parser.add_argument('--num_workers', type=int, default=4)
     parser.add_argument('--train_batch', type=int, default=16)
@@ -188,12 +188,10 @@ def main(args):
 
     if arch == 'Unet':
         model = Unet('resnet18', encoder_weights=None, classes=4, activation=None)
-    elif 'deeplabv3' in arch:
+    else:
         model = deeplab.__dict__[arch](pretrained=False, progress=True, num_classes=4, 
             aux_loss=aux_loss, resume_fp=None, aspp_dilation=aspp_dilation,
             replace=replace_stride_with_dilation, freeze=freeze, multigrid=multigrid)
-    else:
-        model = salt_unet.__dict__[arch](4)
 
     model.to(device)
     model.eval()
@@ -225,6 +223,7 @@ def main(args):
             outputs = model(images.to(device))
             if isinstance(outputs, dict):
                 if 'aux' in outputs.keys():
+                    print('&&&&&&&&&&&&&')
                     outputs = (outputs['out']+outputs['aux'])/2
                 else:
                     outputs = outputs['out']

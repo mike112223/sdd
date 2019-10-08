@@ -75,11 +75,11 @@ class SteelDataset(Dataset):
             # cv2.imshow('ori',img)
 
             # 1.random scaling
-            img, mask = random_scaling(img, mask, 1.0, 1.5)
+            img, mask = random_scaling(img, mask)
             # 2.padding
             img, mask = pad_to_bounding_box(img, mask, self.crop_size, 0, 0)
             # 3.random crop
-            img, mask = random_crop([img, mask], self.crop_size, 0.3, 500)
+            img, mask = random_crop([img, mask], self.crop_size)
 
         augmented = self.transforms(image=img, mask=mask)
         img = augmented['image']
