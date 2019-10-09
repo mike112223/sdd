@@ -28,7 +28,7 @@ def main(args):
             print('*****')
             print(model_path)
             print(model['epoch'])
-            print(model['score'])
+            print(model['best_score'])
             print(model['best_loss'])
 
 if __name__ == '__main__':

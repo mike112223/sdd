@@ -100,7 +100,7 @@ class Trainer(object):
                 'best_loss': self.best_loss,
                 'state_dict': self.net.state_dict(),
                 'optimizer': self.optimizer.state_dict(),
-                'score': self.best_score
+                'best_score': self.best_score
             }
 
             start = time.strftime('%m/%d-%H:%M:%S')

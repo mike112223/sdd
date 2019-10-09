@@ -51,13 +51,13 @@ def _load_model(arch_type, backbone, pretrained, progress, num_classes, aux_loss
         if model_url is None:
             raise NotImplementedError('pretrained {} is not supported as of now'.format(arch))
         else:
-            state_dict = load_state_dict_from_url(model_url, progress=progress)
+            pretrain_dict = load_state_dict_from_url(model_url, progress=progress)
 
             model_dict = model.state_dict()
             # 1. filter out unnecessary keys
-            state_dict = {k: v for k, v in model_dict.items() if k in state_dict}
+            pretrain_dict = {k: v for k, v in pretrain_dict.items() if k in model_dict}
             # 2. overwrite entries in the existing state dict
-            model_dict.update(state_dict)
+            model_dict.update(pretrain_dict)
             # 3. load the new state dict
             model.load_state_dict(model_dict)
 

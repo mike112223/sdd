@@ -137,7 +137,7 @@ class SEBottleneck(nn.Module):
         self.conv3 = conv1x1(width, planes * self.expansion)
         self.bn3 = norm_layer(planes * self.expansion)
         self.relu = nn.ReLU(inplace=True)
-        self.se = SELayer(planes * self.expansion, reduction) 
+        self.se = SELayer(planes * self.expansion, reduction)
         self.downsample = downsample
         self.stride = stride
 
@@ -405,13 +405,13 @@ def _resnet(arch, block, layers, pretrained, progress, **kwargs):
     model = ResNet(block, layers, **kwargs)
     if pretrained:
         print('load %s pretrain model!!!'%arch)
-        state_dict = load_state_dict_from_url(model_urls[arch],
-                                              progress=progress)
+        pretrain_dict = load_state_dict_from_url(model_urls[arch], progress=progress)
+
         model_dict = model.state_dict()
         # 1. filter out unnecessary keys
-        state_dict = {k: v for k, v in model_dict.items() if k in state_dict}
+        pretrain_dict = {k: v for k, v in pretrain_dict.items() if k in model_dict}
         # 2. overwrite entries in the existing state dict
-        model_dict.update(state_dict)
+        model_dict.update(pretrain_dict)
         # 3. load the new state dict
         model.load_state_dict(model_dict)
     return model
