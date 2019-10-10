@@ -333,24 +333,15 @@ def provider(
     for phase in phases:
         df = train_df if phase == "train" else val_df
         image_dataset = NewSteelDataset(df, df_path, data_folder, mean, std, phase, inference, downsample, patch)
-        if phase == 'train':
-            dataloader = DataLoader(
-                image_dataset,
-                sampler=FiveBalanceClassSampler(image_dataset),
-                batch_size=batch_sizes[phase],
-                drop_last=True,
-                num_workers=num_workers,
-                pin_memory=True,
-                #worker_init_fn=_init_fn
-            )
-        else:
-            dataloader = DataLoader(
-                image_dataset,
-                batch_size=batch_sizes[phase],
-                num_workers=num_workers,
-                pin_memory=True,
-                #worker_init_fn=_init_fn
-            )
+        dataloader = DataLoader(
+            image_dataset,
+            sampler=FiveBalanceClassSampler(image_dataset),
+            batch_size=batch_sizes[phase],
+            drop_last=True,
+            num_workers=num_workers,
+            pin_memory=True,
+            #worker_init_fn=_init_fn
+        )
         dataloaders[phase] = dataloader
 
     return dataloaders
