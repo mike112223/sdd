@@ -6,7 +6,8 @@ import numpy as np
 import argparse
 
 from lib.model import Unet  # import Unet model from the script
-from lib.engine import Trainer
+# from lib.engine import Trainer
+from lib.new_engine import Trainer
 from lib.utils import init, plot
 from lib.new_data import provider
 from lib.loss import BalanceBCE, DiceLoss
@@ -113,15 +114,15 @@ def main(args):
     if arch == 'Unet':
         model = Unet(model_name, encoder_weights='imagenet', classes=classes, activation=None, resume_fp=resume_fp)
     elif 'deeplabv3' in arch:
-        model = deeplab.__dict__[arch](pretrained=False, progress=True, num_classes=4, 
+        model = deeplab.__dict__[arch](pretrained=False, progress=True, num_classes=classes, 
             aux_loss=aux_loss, resume_fp=resume_fp, aspp_dilation=aspp_dilation,
             replace=replace_stride_with_dilation, freeze=freeze, multigrid=multigrid)
     else:
         model = salt_unet.__dict__[arch](classes)
 
     ### 5. criterion
-    criterion = torch.nn.BCEWithLogitsLoss()
-    # criterion = torch.nn.CrossEntropyLoss(ignore_index=-255)
+    # criterion = torch.nn.BCEWithLogitsLoss()
+    criterion = torch.nn.CrossEntropyLoss(ignore_index=-255)
     #criterion = DiceLoss() #BalanceBCE(5)
 
     ### 6. trainer

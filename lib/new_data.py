@@ -11,82 +11,92 @@ from torch.utils.data import DataLoader, Dataset, Sampler
 from albumentations import (HorizontalFlip, VerticalFlip, RandomBrightnessContrast, RandomGamma, ShiftScaleRotate, Normalize, Resize, Compose, GaussNoise)
 from albumentations.pytorch import ToTensor
 
-from .utils import random_scaling, pad_to_bounding_box, random_crop
+def run_length_decode(rle, height=256, width=1600, fill_value=1):
+    mask = np.zeros((height,width), np.float32)
+    if rle != '':
+        mask=mask.reshape(-1)
+        r = [int(r) for r in rle.split(' ')]
+        r = np.array(r).reshape(-1, 2)
+        for start,length in r:
+            start = start-1  #???? 0 or 1 index ???
+            mask[start:(start + length)] = fill_value
+        mask=mask.reshape(width, height).T
+    return mask
 
-# def random_scaling(img, mask, min_scale_factor=0.5, max_scale_factor=2.0):
-#     scale = np.random.uniform(min_scale_factor, max_scale_factor)
-#     # print('scale:',scale)
-#     h, w, _ = img.shape
-#     scale_w, scale_h = int(scale*w), int(scale*h)
-#     # print(scale_h, scale_w)
-#     img = cv2.resize(img, (scale_w, scale_h), interpolation=cv2.INTER_LINEAR)
-#     mask = cv2.resize(mask, (scale_w, scale_h), interpolation=cv2.INTER_NEAREST)
+def random_scaling(img, mask, min_scale_factor=0.5, max_scale_factor=2.0):
+    scale = np.random.uniform(min_scale_factor, max_scale_factor)
+    # print('scale:',scale)
+    h, w, _ = img.shape
+    scale_w, scale_h = int(scale*w), int(scale*h)
+    # print(scale_h, scale_w)
+    img = cv2.resize(img, (scale_w, scale_h), interpolation=cv2.INTER_LINEAR)
+    mask = cv2.resize(mask, (scale_w, scale_h), interpolation=cv2.INTER_NEAREST)
 
-#     return img, mask
+    return img, mask
 
-# def pad_to_bounding_box(img, mask, crop_h=256, crop_w=400, offset_height=0, offset_width=0):
+def pad_to_bounding_box(img, mask, crop_h=256, crop_w=400, offset_height=0, offset_width=0):
 
-#     pad_value = [123.675, 116.28 ,103.53]
-#     ignore_value = -255
-#     h, w, _ = img.shape
-#     target_height = max(crop_h - h, 0)
-#     target_width = max(crop_w - w, 0)
-#     # print('padding:', target_height, target_width)
+    pad_value = [123.675, 116.28 ,103.53]
+    ignore_value = -255
+    h, w, _ = img.shape
+    target_height = max(crop_h - h, 0)
+    target_width = max(crop_w - w, 0)
+    # print('padding:', target_height, target_width)
 
-#     img = np.pad(img, ((offset_height, target_height),(offset_width, target_width),(0,0)),
-#                 'constant', constant_values=np.repeat(pad_value,2).reshape(3,2))
+    img = np.pad(img, ((offset_height, target_height),(offset_width, target_width),(0,0)),
+                'constant', constant_values=np.repeat(pad_value,2).reshape(3,2))
 
-#     mask = np.pad(mask, ((offset_height, target_height),(offset_width, target_width)),
-#             'constant', constant_values=np.repeat(ignore_value,4).reshape(2,2))        
+    mask = np.pad(mask, ((offset_height, target_height),(offset_width, target_width)),
+            'constant', constant_values=np.repeat(ignore_value,4).reshape(2,2))        
 
-#     return img, mask
+    return img, mask
 
-# # def random_crop(image_list, crop_size):
-# #     image_height, image_width, _ = image_list[0].shape 
+# def random_crop(image_list, crop_size):
+#     image_height, image_width, _ = image_list[0].shape 
 
-# #     max_offset_height = image_height - crop_size + 1
-# #     max_offset_width = image_width - crop_size + 1
-# #     offset_height = np.random.randint(0, max_offset_height)
-# #     offset_width = np.random.randint(0, max_offset_width)
+#     max_offset_height = image_height - crop_size + 1
+#     max_offset_width = image_width - crop_size + 1
+#     offset_height = np.random.randint(0, max_offset_height)
+#     offset_width = np.random.randint(0, max_offset_width)
 
-# #     print('offset:', offset_height, offset_width)
+#     print('offset:', offset_height, offset_width)
 
-# #     return [image[offset_height:offset_height+crop_size,offset_width:offset_width+crop_size,:] for image in image_list]
+#     return [image[offset_height:offset_height+crop_size,offset_width:offset_width+crop_size,:] for image in image_list]
 
-# def random_crop(img, mask, crop_h=256, crop_w=400, iof_thresh=0.3, area_thresh=100):
+def random_crop(img, mask, crop_h=256, crop_w=400, iof_thresh=0.3, area_thresh=100):
 
-#     image_height, image_width, _ = img.shape
+    image_height, image_width, _ = img.shape
 
-#     max_offset_height = image_height - crop_h + 1
-#     max_offset_width = image_width - crop_w + 1
+    max_offset_height = image_height - crop_h + 1
+    max_offset_width = image_width - crop_w + 1
 
-#     fg_pixels = np.where(mask == 1)
-#     while True:
-#         if len(fg_pixels[0]):
-#             idx = np.random.randint(0, len(fg_pixels[0]))
-#             y, x = fg_pixels[0][idx], fg_pixels[1][idx]
+    fg_pixels = np.where(mask == 1)
+    while True:
+        if len(fg_pixels[0]):
+            idx = np.random.randint(0, len(fg_pixels[0]))
+            y, x = fg_pixels[0][idx], fg_pixels[1][idx]
 
-#             y = max(0, y-crop_h//2)
-#             x = max(0, x-crop_w//2)
+            y = max(0, y-crop_h//2)
+            x = max(0, x-crop_w//2)
 
-#             offset_height = y if y < max_offset_height else np.random.randint(0, max_offset_height)
-#             offset_width = x if x < max_offset_width else np.random.randint(0, max_offset_width)
+            offset_height = y if y < max_offset_height else np.random.randint(0, max_offset_height)
+            offset_width = x if x < max_offset_width else np.random.randint(0, max_offset_width)
 
-#             crop_mask = mask[offset_height:offset_height+crop_h,offset_width:offset_width+crop_w]
-#             area = len(np.where(crop_mask==1)[0])
-#             iof = area/len(np.where(mask[:,:]==1)[0])
-#             # print(area, iof)
-#             if iof > iof_thresh or area > area_thresh:
-#                 break
+            crop_mask = mask[offset_height:offset_height+crop_h,offset_width:offset_width+crop_w]
+            area = len(np.where(crop_mask==1)[0])
+            iof = area/len(np.where(mask[:,:]==1)[0])
+            # print(area, iof)
+            if iof > iof_thresh or area > area_thresh:
+                break
 
-#         else:
-#             offset_height = np.random.randint(0, max_offset_height)
-#             offset_width = np.random.randint(0, max_offset_width)
-#             break
+        else:
+            offset_height = np.random.randint(0, max_offset_height)
+            offset_width = np.random.randint(0, max_offset_width)
+            break
 
-#     # print('offset:', offset_height, offset_width)
+    # print('offset:', offset_height, offset_width)
 
-#     return img[offset_height:offset_height+crop_h,offset_width:offset_width+crop_w,:], mask[offset_height:offset_height+crop_h,offset_width:offset_width+crop_w]
+    return img[offset_height:offset_height+crop_h,offset_width:offset_width+crop_w,:], mask[offset_height:offset_height+crop_h,offset_width:offset_width+crop_w]
 
 
 def make_mask(rle):
@@ -201,11 +211,10 @@ class NewSteelDataset(Dataset):
         ]
         image_path = os.path.join(self.root, 'images',  image_id)
         image = cv2.imread(image_path)
-        
-        mask = make_mask(rle)
+
         label = [ 0 if r=='' else 1 for r in rle]
-        # mask  = np.array([run_length_decode(r, height=256, width=1600, fill_value=c) for c,r in zip([1,2,3,4],rle)])
-        # mask  = mask.max(0, keepdims=0)
+        mask  = np.array([run_length_decode(r, height=256, width=1600, fill_value=c) for c,r in zip([1,2,3,4],rle)])
+        mask  = mask.max(0, keepdims=0)
 
         infor = {
             'index':index,
@@ -219,7 +228,7 @@ class NewSteelDataset(Dataset):
         augmented = self.transforms(image=image, mask=mask)
         image = augmented['image']
         mask = augmented['mask'] # 256x1600x4
-        mask = mask[0].permute(2, 0, 1) # 4x256x1600
+        # mask = mask[0].permute(2, 0, 1) # 4x256x1600
         #print('before', mask.dtype, mask.shape)
         if self.inference:
             return image, mask, label, infor
@@ -273,7 +282,7 @@ def patch_transforms(image, mask, crop_h, crop_w):
     image, mask = pad_to_bounding_box(image, mask, crop_h, crop_w, 0, 0)
     # print(image.shape)
     # 3.random crop
-    image, mask = random_crop([image, mask], crop_h, crop_w, 0, 0)
+    image, mask = random_crop(image, mask, crop_h, crop_w, 0, 0)
 
     return image, mask
 
