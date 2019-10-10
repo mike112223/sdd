@@ -43,5 +43,6 @@
 |  |
 | deeplabv3_scse_aspp2 | 20191009_1103 | Adam | 8 | 5e-4 | latest(20) | 1,2,2 | 2 | 0,0,1 | F || 0.92821 ||
 |  |
-| deeplabv3_patch | 20191009_1106 | Adam | 8 | 5e-4 | dice_best | 1,2,2 | 6 | 0,0,1 | F || 0.92821 ||
+| deeplabv3_patch | 20191009_1106 | Adam | 8 | 5e-4 | dice_best | 1,2,2 | 2 | 0,0,1 | F || 0.92744 | 0.88448 |
+
 
