@@ -39,7 +39,6 @@ def make_mask(row_id, df):
             masks[:, :, idx] = mask.reshape(256, 1600, order='F')
     return fname, masks
 
-
 def filter_per_map(probability, threshold, min_size):
     '''Post processing of each predicted mask, components with lesser number of pixels
     than `min_size` are ignored'''
@@ -197,12 +196,12 @@ def random_scaling(img, mask, min_scale_factor=0.5, max_scale_factor=2.0):
 
     return img, mask
 
-def pad_to_bounding_box(img, mask, crop_size, offset_height, offset_width):
+def pad_to_bounding_box(img, mask, crop_h=256, crop_w=400, offset_height=0, offset_width=0):
     pad_value = [123.675, 116.28 ,103.53]
     ignore_value = -255
     h, w, _ = img.shape
-    target_height = max(crop_size - h, 0)
-    target_width = max(crop_size - w, 0)
+    target_height = max(crop_h - h, 0)
+    target_width = max(crop_w - w, 0)
     # print('padding:', target_height, target_width)
 
     img = np.pad(img, ((offset_height, target_height),(offset_width,target_width),(0,0)),
@@ -224,14 +223,14 @@ def pad_to_bounding_box(img, mask, crop_size, offset_height, offset_width):
 
 #     return [image[offset_height:offset_height+crop_size,offset_width:offset_width+crop_size,:] for image in image_list]
 
-def random_crop(image_list, crop_size, iof_thresh=0.3, area_thresh=100):
+def random_crop(image_list, crop_h=256, crop_w=256, iof_thresh=0.3, area_thresh=100):
 
     img = image_list[0]
     mask = image_list[1]
     image_height, image_width, _ = img.shape
 
-    max_offset_height = image_height - crop_size + 1
-    max_offset_width = image_width - crop_size + 1
+    max_offset_height = image_height - crop_h + 1
+    max_offset_width = image_width - crop_w + 1
 
     fg_pixels = np.where(mask == 1)
     while True:
@@ -239,13 +238,13 @@ def random_crop(image_list, crop_size, iof_thresh=0.3, area_thresh=100):
             idx = np.random.randint(0, len(fg_pixels[0]))
             y, x, label = fg_pixels[0][idx], fg_pixels[1][idx], fg_pixels[2][idx]
 
-            y = max(0, y-crop_size//2)
-            x = max(0, x-crop_size//2)
+            y = max(0, y-crop_h//2)
+            x = max(0, x-crop_w//2)
 
             offset_height = y if y < max_offset_height else np.random.randint(0, max_offset_height)
             offset_width = x if x < max_offset_width else np.random.randint(0, max_offset_width)
 
-            crop_mask = mask[offset_height:offset_height+crop_size,offset_width:offset_width+crop_size,label]
+            crop_mask = mask[offset_height:offset_height+crop_h,offset_width:offset_width+crop_w,label]
             area = len(np.where(crop_mask==1)[0])
             iof = area/len(np.where(mask[:,:,label]==1)[0])
             # print(area, iof)
@@ -259,4 +258,4 @@ def random_crop(image_list, crop_size, iof_thresh=0.3, area_thresh=100):
 
     # print('offset:', offset_height, offset_width)
 
-    return [image[offset_height:offset_height+crop_size,offset_width:offset_width+crop_size,:] for image in image_list]
+    return [image[offset_height:offset_height+crop_h,offset_width:offset_width+crop_w,:] for image in image_list]

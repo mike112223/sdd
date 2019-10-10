@@ -32,7 +32,7 @@ def parse_args():
     parser.add_argument('--ckpt_path', default=None)
     parser.add_argument('--phase', default='val', type=str)
     parser.add_argument('--backbone',default='resnet18',help='backbone')
-    parser.add_argument('--arch', choices=['Unet', 'deeplabv3_resnet50', 'deeplabv3_se_resnet50'], default='Unet')
+    parser.add_argument('--arch', choices=['Unet', 'deeplabv3_resnet50', 'deeplabv3_se_resnet50', 'deeplabv3_scse_resnet50'], default='Unet')
     parser.add_argument('--classes', type=int, default=4)
     parser.add_argument('--num_workers', type=int, default=4)
     parser.add_argument('--train_batch', type=int, default=16)

@@ -37,5 +37,9 @@
 |  |
 | deeplabv_wo_dropout | 20190927_1231 | Adam | 8 | 5e-4 | loss_best(20) | 1,2,2 | 6 | 0,0,1 | F || 0.93895 ||
 |  |
-| deeplabv3_se_aspp2 | 20190929_1242 | Adam | 8 | 5e-4 | loss_best(20) | 1,2,2 | 2 | 0,0,1 | F || 0.9437 ||
+| deeplabv3_50_se_aspp2 | 20190929_1242 | Adam | 8 | 5e-4 | loss_best(20) | 1,2,2 | 2 | 0,0,1 | F || 0.9437 ||
+|  |
+| deeplabv3_se_aspp2_debug | 20191009_1102 | Adam | 8 | 5e-4 | latest(20) | 1,2,2 | 2 | 0,0,1 | F || 0.93883 ||
+|  |
+| deeplabv3_scse_aspp2 | 20191009_1102 | Adam | 8 | 5e-4 | latest(20) | 1,2,2 | 2 | 0,0,1 | F || 0.93883 ||
 

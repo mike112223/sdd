@@ -41,7 +41,7 @@ def mask2contours(mask):
     return contour_mask
 
 class SteelDataset(Dataset):
-    def __init__(self, df, data_folder, mean, std, phase, inference=False, downsample=1, patch=False, crop_size=256):
+    def __init__(self, df, data_folder, mean, std, phase, inference=False, downsample=1, patch=False, crop_size=[256, 256]):
         self.df = df
         self.root = data_folder
         self.mean = mean
@@ -52,7 +52,8 @@ class SteelDataset(Dataset):
         self.inference = inference
         self.downsample = downsample
         self.patch = patch
-        self.crop_size = crop_size
+        self.crop_h = crop_size[0]
+        self.crop_w = crop_size[1]
 
     def __getitem__(self, idx):
         image_id, mask = make_mask(idx, self.df)
@@ -77,9 +78,9 @@ class SteelDataset(Dataset):
             # 1.random scaling
             img, mask = random_scaling(img, mask)
             # 2.padding
-            img, mask = pad_to_bounding_box(img, mask, self.crop_size, 0, 0)
+            img, mask = pad_to_bounding_box(img, mask, self.crop_h, self.crop_w, 0, 0)
             # 3.random crop
-            img, mask = random_crop([img, mask], self.crop_size)
+            img, mask = random_crop([img, mask], self.crop_h, self.crop_w)
 
         augmented = self.transforms(image=img, mask=mask)
         img = augmented['image']
